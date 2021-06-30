@@ -11,5 +11,10 @@ data class Task(
         var assignedTo: Long = -1,
         var estStarted: ZonedDateTime? = null,
         var estimate: Period? = null,
-        var createTime: ZonedDateTime? = null
-)
+        var createTime: ZonedDateTime? = null,
+        var lastEditTime: ZonedDateTime? = null,
+        var lastEditBy: Long = -1
+) {
+
+
+}
