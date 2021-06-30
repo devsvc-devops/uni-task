@@ -14,6 +14,7 @@
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
+        <notion-sdk.version>0.1.10</notion-sdk.version>
     </properties>
 
     <dependencies>
@@ -24,9 +25,21 @@
         </dependency>
 
         <dependency>
-            <groupId>com.github.notionsdk</groupId>
-            <artifactId>notion-sdk-kotlin</artifactId>
-            <version>1.0.4</version>
+            <groupId>com.github.seratch</groupId>
+            <artifactId>notion-sdk-jvm-core</artifactId>
+            <version>${notion-sdk.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.seratch</groupId>
+            <artifactId>notion-sdk-jvm-okhttp4</artifactId>
+            <version>${notion-sdk.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.seratch</groupId>
+            <artifactId>notion-sdk-jvm-slf4j</artifactId>
+            <version>${notion-sdk.version}</version>
         </dependency>
     </dependencies>
 

@@ -13,7 +13,10 @@ data class Task(
         var estimate: Period? = null,
         var createTime: ZonedDateTime? = null,
         var lastEditTime: ZonedDateTime? = null,
-        var lastEditBy: Long = -1
+        var lastEditBy: Long = -1,
+        var project: Long = -1,
+        var planId: Long = -1,
+        var productId: Long = -1,
 ) {
 
 
