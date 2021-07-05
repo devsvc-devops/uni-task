@@ -23,8 +23,9 @@
     <modules>
         <module>core</module>
         <module>zentao-unitask-connector</module>
-        <module>store-nitrite</module>
+        <module>store</module>
         <module>notion-connector</module>
+        <module>connector</module>
     </modules>
 
     <repositories>
