@@ -17,6 +17,15 @@
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
+        <kotlin.version>1.4.21</kotlin.version>
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-coroutines-core</artifactId>
+            <version>1.4.3</version>
+        </dependency>
+    </dependencies>
 
 </project>

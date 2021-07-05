@@ -15,7 +15,7 @@ interface TaskRepository {
 
     fun listProjects(): List<Plan>
     fun createProject(): Project
-    fun getTasksOfProject(projectId: Long): List<Task>
+    fun getTasksOfProject(projectId: String): List<Task>
 
     fun listTasks(): List<Task>
     fun createTask(task: Task)
