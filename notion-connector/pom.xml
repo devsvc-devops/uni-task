@@ -23,6 +23,11 @@
             <artifactId>uni-task-core</artifactId>
             <version>0.1.0-SNAPSHOT</version>
         </dependency>
+        <dependency>
+            <groupId>pro.devsvc</groupId>
+            <artifactId>unitask-connector</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+        </dependency>
 
         <dependency>
             <groupId>com.github.seratch</groupId>
@@ -41,6 +46,7 @@
             <artifactId>notion-sdk-jvm-slf4j</artifactId>
             <version>${notion-sdk.version}</version>
         </dependency>
+
     </dependencies>
 
     <repositories>
