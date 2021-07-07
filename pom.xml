@@ -18,6 +18,7 @@
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
+        <kotlin.version>1.5.20</kotlin.version>
     </properties>
 
     <modules>

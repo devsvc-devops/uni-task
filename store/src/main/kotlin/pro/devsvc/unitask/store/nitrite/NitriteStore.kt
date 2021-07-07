@@ -8,6 +8,7 @@ import org.dizitart.no2.IndexOptions
 import org.dizitart.no2.IndexType
 import org.dizitart.no2.filters.Filters
 import org.dizitart.no2.filters.Filters.*
+import kotlinx.serialization.properties.*
 
 
 class NitriteStore : TaskStore {
@@ -26,14 +27,16 @@ class NitriteStore : TaskStore {
         if (collection.hasIndex("title")) {
             collection.createIndex("title", IndexOptions.indexOptions(IndexType.NonUnique))
         }
+
+
     }
 
     override fun store(task: Task) {
         val document = createDocument("id", task.id)
         val existing = load(task.id)
         if (existing != null) {
-            document["title"] = task.title
-            document["desc"] = task.desc
+            val map = Properties.encodeToMap(task)
+            document.putAll(map)
         }
         collection.update(eq("id", task.id), document)
     }
@@ -55,9 +58,7 @@ class NitriteStore : TaskStore {
         if (doc == null) {
             return null
         }
-        val task = Task(doc["id"] as String, doc["title"] as String)
-        task.desc = doc["desc"] as String
-
+        val task = Properties.decodeFromMap<Task>(doc)
         return task
     }
 }
