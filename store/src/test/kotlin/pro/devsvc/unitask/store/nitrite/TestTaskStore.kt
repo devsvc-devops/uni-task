@@ -10,7 +10,9 @@ class TestTaskStore {
     @Test
     fun test() {
         val store = NitriteStore()
-        store.store(Task("1", "aaa"))
+        val task = Task("1", "aaa")
+        task.desc = "111"
+        store.store(task)
 //        store.db.commit()
         val store2 = store.load("1")
         assertNotNull(store2)

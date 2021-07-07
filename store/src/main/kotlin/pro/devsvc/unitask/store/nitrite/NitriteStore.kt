@@ -29,7 +29,10 @@ class NitriteStore : TaskStore {
 
     override fun store(task: Task) {
         val document = createDocument("id", task.id)
-        document["title"] = task.title
+        val existing = load(task.id)
+        if (existing != null) {
+            document["title"] = task.title
+        }
         collection.update(document, true)
     }
 
