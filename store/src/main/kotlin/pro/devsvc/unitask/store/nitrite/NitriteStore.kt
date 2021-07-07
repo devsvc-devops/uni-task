@@ -6,10 +6,8 @@ import pro.devsvc.unitask.core.model.Task
 import org.dizitart.no2.Document.createDocument
 import org.dizitart.no2.IndexOptions
 import org.dizitart.no2.IndexType
-import org.dizitart.no2.filters.Filters
 import org.dizitart.no2.filters.Filters.*
 import kotlinx.serialization.properties.*
-
 
 class NitriteStore : TaskStore {
 
@@ -27,8 +25,6 @@ class NitriteStore : TaskStore {
         if (collection.hasIndex("title")) {
             collection.createIndex("title", IndexOptions.indexOptions(IndexType.NonUnique))
         }
-
-
     }
 
     override fun store(task: Task) {
@@ -42,7 +38,6 @@ class NitriteStore : TaskStore {
     }
 
     override fun store(tasks: List<Task>) {
-
     }
 
     override fun load(): List<Task> {

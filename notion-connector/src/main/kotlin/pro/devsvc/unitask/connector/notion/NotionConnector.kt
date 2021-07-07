@@ -21,8 +21,6 @@ class NotionConnector(private val token: String = System.getProperty("NOTION_TOK
         val databases = listDatabase()
         for (db in databases.results) {
             val qdb = client.queryDatabase(db.id).results
-            
         }
     }
-
 }

@@ -1,4 +1,3 @@
 package pro.devsvc.unitask.connector
 
-interface Connector {
-}
+interface Connector

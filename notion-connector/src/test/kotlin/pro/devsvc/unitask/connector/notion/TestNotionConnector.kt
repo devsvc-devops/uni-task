@@ -8,5 +8,4 @@ class TestNotionConnector {
     fun test() {
         NotionConnector().test()
     }
-
 }

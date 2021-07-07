@@ -40,4 +40,50 @@
         </repository>
     </repositories>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>1.8</version>
+                <executions>
+                    <execution>
+                        <id>ktlint-format</id>
+                        <phase>validate</phase>
+                        <configuration>
+                            <target name="ktlint">
+                                <java taskname="ktlint" dir="${basedir}" fork="true" failonerror="true"
+                                      classpathref="maven.plugin.classpath" classname="com.pinterest.ktlint.Main">
+                                    <arg value="-F"/>
+                                    <arg value="src/**/*.kt"/>
+                                </java>
+                            </target>
+                        </configuration>
+                        <goals><goal>run</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>ktlint</id>
+                        <phase>validate</phase>
+                        <configuration>
+                            <target name="ktlint">
+                                <java taskname="ktlint" dir="${basedir}" fork="true" failonerror="true"
+                                      classpathref="maven.plugin.classpath" classname="com.pinterest.ktlint.Main">
+                                    <arg value="src/**/*.kt"/>
+                                    <arg value="--reporter=plain"/>
+                                </java>
+                            </target>
+                        </configuration>
+                        <goals><goal>run</goal></goals>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.pinterest</groupId>
+                        <artifactId>ktlint</artifactId>
+                        <version>0.41.0</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
+    </build>
 </project>
