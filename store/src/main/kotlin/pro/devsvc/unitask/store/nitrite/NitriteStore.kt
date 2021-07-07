@@ -7,6 +7,7 @@ import org.dizitart.no2.Document.createDocument
 import org.dizitart.no2.IndexOptions
 import org.dizitart.no2.IndexType
 import org.dizitart.no2.filters.Filters
+import org.dizitart.no2.filters.Filters.*
 
 
 class NitriteStore : TaskStore {
@@ -32,8 +33,9 @@ class NitriteStore : TaskStore {
         val existing = load(task.id)
         if (existing != null) {
             document["title"] = task.title
+            document["desc"] = task.desc
         }
-        collection.update(document, true)
+        collection.update(eq("id", task.id), document)
     }
 
     override fun store(tasks: List<Task>) {
@@ -45,7 +47,7 @@ class NitriteStore : TaskStore {
     }
 
     override fun load(id: String): Task? {
-        val doc = collection.find(Filters.eq("id", id)).firstOrDefault()
+        val doc = collection.find(eq("id", id)).firstOrDefault()
         return docToTask(doc)
     }
 
@@ -54,6 +56,8 @@ class NitriteStore : TaskStore {
             return null
         }
         val task = Task(doc["id"] as String, doc["title"] as String)
+        task.desc = doc["desc"] as String
+
         return task
     }
 }

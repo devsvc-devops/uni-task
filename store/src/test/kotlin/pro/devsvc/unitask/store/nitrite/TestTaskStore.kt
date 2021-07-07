@@ -14,8 +14,9 @@ class TestTaskStore {
         task.desc = "111"
         store.store(task)
 //        store.db.commit()
-        val store2 = store.load("1")
-        assertNotNull(store2)
-        assertEquals("aaa", store2.title)
+        val task2 = store.load("1")
+        assertNotNull(task2)
+        assertEquals("aaa", task2.title)
+        assertEquals("111", task2.desc)
     }
 }
