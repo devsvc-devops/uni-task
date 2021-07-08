@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory
 object ConnectorManager {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    val connectors = mutableMapOf<String, Connector>()
+    private val connectors = mutableMapOf<String, Connector>()
 
     fun registerConnector(id: String, connector: Connector) {
         connectors[id] = connector

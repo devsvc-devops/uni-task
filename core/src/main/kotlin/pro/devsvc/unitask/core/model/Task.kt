@@ -5,6 +5,7 @@ import pro.devsvc.unitask.core.serial.KZonedDateTimeSerializer
 import java.time.ZonedDateTime
 import kotlinx.datetime.DateTimePeriod
 import kotlinx.datetime.serializers.DateTimePeriodIso8601Serializer
+import kotlinx.serialization.Contextual
 
 @Serializable
 data class Task(
@@ -29,4 +30,7 @@ data class Task(
     var project: String? = null
     var planId: String? = null
     var productId: String? = null
+
+    var customProperties = mutableMapOf<String, String>()
+
 }
