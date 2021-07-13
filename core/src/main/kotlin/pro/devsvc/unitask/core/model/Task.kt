@@ -17,9 +17,12 @@ data class Task(
     var desc: String = ""
 
     /** the user id */
-    var assignedTo: String = ""
+    var assignedUserId: String = ""
+    var assignedUserName: String = ""
     @Serializable(with = KZonedDateTimeSerializer::class)
     var estStarted: ZonedDateTime? = null
+    @Serializable(with = KZonedDateTimeSerializer::class)
+    var deadline: ZonedDateTime? = null
     @Serializable(with = DateTimePeriodIso8601Serializer::class)
     var estimate: DateTimePeriod? = null
     @Serializable(with = KZonedDateTimeSerializer::class)
@@ -27,9 +30,12 @@ data class Task(
     @Serializable(with = KZonedDateTimeSerializer::class)
     var lastEditTime: ZonedDateTime? = null
     var lastEditBy: String = ""
-    var project: String? = null
+    var projectId: String? = null
+    var projectName: String? = null
     var planId: String? = null
+    var planName: String? = null
     var productId: String? = null
+    var productName: String? = null
 
     var customProperties = mutableMapOf<String, String>()
 

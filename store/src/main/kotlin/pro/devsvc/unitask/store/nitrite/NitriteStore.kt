@@ -29,12 +29,14 @@ class NitriteStore : TaskStore {
 
     override fun store(task: Task) {
         val document = createDocument("id", task.id)
+        val map = Properties.encodeToMap(task)
+        document.putAll(map)
         val existing = load(task.id)
         if (existing != null) {
-            val map = Properties.encodeToMap(task)
-            document.putAll(map)
+            collection.update(eq("id", task.id), document)
+        } else {
+            collection.insert(document)
         }
-        collection.update(eq("id", task.id), document)
     }
 
     override fun store(tasks: List<Task>) {
