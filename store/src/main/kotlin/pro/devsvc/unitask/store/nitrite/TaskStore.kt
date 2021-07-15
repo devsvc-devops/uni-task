@@ -6,6 +6,6 @@ interface TaskStore {
 
     fun store(task: Task)
     fun store(tasks: List<Task>)
-    fun load(): List<Task>
+    fun load(): Sequence<Task>
     fun load(id: String): Task?
 }

@@ -42,8 +42,13 @@ class NitriteStore : TaskStore {
     override fun store(tasks: List<Task>) {
     }
 
-    override fun load(): List<Task> {
-        return listOf()
+    override fun load() = sequence {
+        for (doc in collection.find()) {
+            val task = docToTask(doc)
+            if (task != null) {
+                yield(task)
+            }
+        }
     }
 
     override fun load(id: String): Task? {

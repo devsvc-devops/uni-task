@@ -15,7 +15,7 @@ data class Task(
 ) {
 
     var desc: String = ""
-
+    var status: String = ""
     /** the user id */
     var assignedUserId: String = ""
     var assignedUserName: String = ""
@@ -37,6 +37,6 @@ data class Task(
     var productId: String? = null
     var productName: String? = null
 
-    var customProperties = mutableMapOf<String, String>()
+    var customProperties = mutableMapOf<String, String?>()
 
 }

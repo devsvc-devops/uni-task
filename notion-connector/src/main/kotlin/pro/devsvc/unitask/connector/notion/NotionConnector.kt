@@ -3,7 +3,10 @@ package pro.devsvc.unitask.connector.notion
 import notion.api.v1.NotionClient
 import notion.api.v1.http.OkHttp4Client
 import notion.api.v1.logging.Slf4jLogger
+import notion.api.v1.model.databases.DatabaseProperty
 import notion.api.v1.model.databases.Databases
+import notion.api.v1.model.pages.Page
+import notion.api.v1.model.pages.PageProperty
 import org.slf4j.LoggerFactory
 import pro.devsvc.unitask.connector.Connector
 import pro.devsvc.unitask.core.model.Task
@@ -45,20 +48,47 @@ class NotionConnector(private val token: String = System.getProperty("NOTION_TOK
         logger = Slf4jLogger(),
     )
 
+    private val statusMap = mutableMapOf<String, DatabaseProperty.Select.Option>()
+
     override fun start(store: TaskStore) {
         for (db in listDatabase().results) {
+            db.properties.forEach { k, v ->
+                if (k == "Status") {
+                    v.select?.options?.forEach { statusMap[it.id!!] = it }
+                }
+            }
             val pages = client.queryDatabase(db.id).results
             for (page in pages) {
-                val title = page.properties["Name"]?.title?.firstOrNull()?.plainText
-                if (title != null) {
-                    val task = Task(page.id, title)
-                    task.customProperties["notion_id"] = page.id
-                    task.createTime = parseDateTime(page.createdTime)
-                    task.estStarted = parseDateTime(page.properties["Due Date"]?.date?.start)
-                    task.deadline = parseDateTime(page.properties["Due Date"]?.date?.end)
-                    task.lastEditTime = parseDateTime(page.lastEditedTime)
-//                    task.assignedUserId = page.properties["assignedUserId"]?.select?.name.toString()
-                    store.store(task)
+                syncToStore(page, store)
+            }
+        }
+        syncToNotion(store)
+    }
+
+    private fun syncToStore(page: Page, store: TaskStore) {
+        val title = page.properties["Name"]?.title?.firstOrNull()?.plainText
+        if (title != null) {
+            val task = Task(page.id, title)
+            task.customProperties["notion_id"] = page.id
+            task.customProperties["status"] = page.properties["Status"]?.select?.id
+            task.createTime = parseDateTime(page.createdTime)
+            task.estStarted = parseDateTime(page.properties["Due Date"]?.date?.start)
+            task.deadline = parseDateTime(page.properties["Due Date"]?.date?.end)
+            task.lastEditTime = parseDateTime(page.lastEditedTime)
+            store.store(task)
+        }
+    }
+
+    private fun syncToNotion(store: TaskStore) {
+        for (task in store.load()) {
+            if (task.title != null) {
+                val notionId = task.customProperties["notion_id"]
+                if (notionId != null) {
+                    client.updatePageProperties(notionId, mapOf(
+                        "status" to PageProperty("Status").apply {
+                            // select = statusMap.get(task.)
+                        }
+                    ))
                 }
             }
         }
@@ -69,10 +99,6 @@ class NotionConnector(private val token: String = System.getProperty("NOTION_TOK
             return null
         }
         return ZonedDateTime.parse(str, formatter)
-    }
-
-    private fun getPropertyAsString() {
-
     }
 
     fun listDatabase(): Databases {
