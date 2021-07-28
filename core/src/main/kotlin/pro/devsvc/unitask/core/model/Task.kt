@@ -5,13 +5,15 @@ import pro.devsvc.unitask.core.serial.KZonedDateTimeSerializer
 import java.time.ZonedDateTime
 import kotlinx.datetime.DateTimePeriod
 import kotlinx.datetime.serializers.DateTimePeriodIso8601Serializer
-import kotlinx.serialization.Contextual
+
+typealias UniTask = Task
 
 @Serializable
 data class Task(
     /** id from notion is uuid, so have to be string */
     var id: String,
     var title: String,
+    var type: TaskType = TaskType.TASK
 ) {
 
     var desc: String = ""
@@ -30,6 +32,7 @@ data class Task(
     @Serializable(with = KZonedDateTimeSerializer::class)
     var lastEditTime: ZonedDateTime? = null
     var lastEditBy: String = ""
+
     var projectId: String? = null
     var projectName: String? = null
     var planId: String? = null
@@ -38,5 +41,15 @@ data class Task(
     var productName: String? = null
 
     var customProperties = mutableMapOf<String, String?>()
+}
 
+enum class TaskType(val type: String) {
+    TASK("Task"),
+    PROJECT("Project"),
+    BUG("Bug"),
+    PERSON("Person")
+}
+
+enum class TaskStatus(val code: String, name: String, val color: String) {
+    // WAIT("")
 }

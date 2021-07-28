@@ -10,6 +10,7 @@ import notion.api.v1.model.pages.PageProperty
 import org.slf4j.LoggerFactory
 import pro.devsvc.unitask.connector.Connector
 import pro.devsvc.unitask.core.model.Task
+import pro.devsvc.unitask.core.model.TaskType
 import pro.devsvc.unitask.store.nitrite.TaskStore
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -83,10 +84,11 @@ class NotionConnector(private val token: String = System.getProperty("NOTION_TOK
         for (task in store.load()) {
             if (task.title != null) {
                 val notionId = task.customProperties["notion_id"]
+
                 if (notionId != null) {
                     client.updatePageProperties(notionId, mapOf(
                         "status" to PageProperty("Status").apply {
-                            // select = statusMap.get(task.)
+                            // select = statusMap[]
                         }
                     ))
                 }

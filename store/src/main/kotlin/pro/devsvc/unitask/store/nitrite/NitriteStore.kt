@@ -8,22 +8,20 @@ import org.dizitart.no2.IndexOptions
 import org.dizitart.no2.IndexType
 import org.dizitart.no2.filters.Filters.*
 import kotlinx.serialization.properties.*
+import pro.devsvc.unitask.core.model.Project
 
 class NitriteStore : TaskStore {
 
-    val db = Nitrite.builder()
+    private val db = Nitrite.builder()
         .compressed()
         .filePath("tmp/test.db")
         .openOrCreate()
 
-    val collection = db.getCollection("tasks")
+    private val taskCollection = db.getCollection("tasks")
 
     init {
-        if (!collection.hasIndex("id")) {
-            collection.createIndex("id", IndexOptions.indexOptions(IndexType.Unique))
-        }
-        if (collection.hasIndex("title")) {
-            collection.createIndex("title", IndexOptions.indexOptions(IndexType.NonUnique))
+        if (!taskCollection.hasIndex("id")) {
+            taskCollection.createIndex("id", IndexOptions.indexOptions(IndexType.Unique))
         }
     }
 
@@ -33,9 +31,9 @@ class NitriteStore : TaskStore {
         document.putAll(map)
         val existing = load(task.id)
         if (existing != null) {
-            collection.update(eq("id", task.id), document)
+            taskCollection.update(eq("id", task.id), document)
         } else {
-            collection.insert(document)
+            taskCollection.insert(document)
         }
     }
 
@@ -43,7 +41,7 @@ class NitriteStore : TaskStore {
     }
 
     override fun load() = sequence {
-        for (doc in collection.find()) {
+        for (doc in taskCollection.find()) {
             val task = docToTask(doc)
             if (task != null) {
                 yield(task)
@@ -52,7 +50,7 @@ class NitriteStore : TaskStore {
     }
 
     override fun load(id: String): Task? {
-        val doc = collection.find(eq("id", id)).firstOrDefault()
+        val doc = taskCollection.find(eq("id", id)).firstOrDefault()
         return docToTask(doc)
     }
 
@@ -63,4 +61,5 @@ class NitriteStore : TaskStore {
         val task = Properties.decodeFromMap<Task>(doc)
         return task
     }
+
 }
