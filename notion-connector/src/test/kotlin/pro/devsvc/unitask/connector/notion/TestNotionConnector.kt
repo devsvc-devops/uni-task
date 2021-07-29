@@ -9,6 +9,6 @@ class TestNotionConnector {
 
     @Test
     fun test() {
-        val connector = NotionConnector().start(store)
+        val connector = NotionConnector(database = "Tasks").start(store)
     }
 }

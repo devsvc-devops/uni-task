@@ -1,6 +1,7 @@
 package pro.devsvc.unitask.connector.notion
 
 import notion.api.v1.NotionClient
+import notion.api.v1.http.HttpUrlConnNotionHttpClient
 import notion.api.v1.http.OkHttp4Client
 import notion.api.v1.logging.Slf4jLogger
 import notion.api.v1.model.databases.DatabaseProperty
@@ -20,7 +21,7 @@ import java.time.temporal.ChronoField
 
 
 class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
-    database: String) : Connector {
+    private val database: String) : Connector {
 
     private val log = LoggerFactory.getLogger(javaClass)
     private var formatter: DateTimeFormatter
@@ -46,7 +47,7 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
 
     private val client = NotionClient(
         token = token,
-        httpClient = OkHttp4Client(),
+        httpClient = HttpUrlConnNotionHttpClient(connectTimeoutMillis = 10_000),
         logger = Slf4jLogger(),
     )
 
@@ -54,11 +55,10 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
 
     override fun start(store: TaskStore) {
         for (db in listDatabase().results) {
-            db.properties.forEach { k, v ->
-                if (k == "Status") {
-                    v.select?.options?.forEach { statusMap[it.id!!] = it }
-                }
+            if (db.title[0].plainText != database) {
+                continue
             }
+            db.properties["Status"]?.select?.options?.forEach { statusMap[it.name!!.toLowerCase()] = it }
             val pages = client.queryDatabase(db.id).results
             for (page in pages) {
                 syncToStore(page, store)
@@ -88,9 +88,12 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
 
                 if (notionId != null) {
                     client.updatePageProperties(notionId, mapOf(
-                        "status" to PageProperty("Status").apply {
-                            // select = statusMap[]
-                        }
+                        "Status" to PageProperty(select = statusMap[task.status.toLowerCase()]),
+                        "Date" to PageProperty(date = PageProperty.Date(
+                            start = task.estStarted?.format(DateTimeFormatter.ISO_DATE_TIME),
+                            end = task.deadline?.format(DateTimeFormatter.ISO_DATE_TIME),
+                        )),
+                        "AssignedTo" to PageProperty(richText = listOf(PageProperty.RichText(plainText = task.assignedUserName)))
                     ))
                 }
             }
