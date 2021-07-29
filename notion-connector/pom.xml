@@ -14,7 +14,7 @@
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
-        <notion-sdk.version>0.1.10</notion-sdk.version>
+        <notion-sdk.version>0.1.12</notion-sdk.version>
     </properties>
 
     <dependencies>

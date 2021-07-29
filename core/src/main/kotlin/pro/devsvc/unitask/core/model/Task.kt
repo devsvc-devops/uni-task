@@ -51,5 +51,8 @@ enum class TaskType(val type: String) {
 }
 
 enum class TaskStatus(val code: String, name: String, val color: String) {
-    // WAIT("")
+    WAIT("1", "Wait", "red"),
+    DOING("2", "Doing", "yellow"),
+    DONE("3", "Done", "green"),
+    CLOSED("4", "Closed", "gray")
 }

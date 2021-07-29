@@ -19,7 +19,8 @@ import java.time.format.DateTimeFormatterBuilder
 import java.time.temporal.ChronoField
 
 
-class NotionConnector(private val token: String = System.getProperty("NOTION_TOKEN")) : Connector {
+class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
+    database: String) : Connector {
 
     private val log = LoggerFactory.getLogger(javaClass)
     private var formatter: DateTimeFormatter
