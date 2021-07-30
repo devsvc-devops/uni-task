@@ -7,7 +7,9 @@ import notion.api.v1.logging.Slf4jLogger
 import notion.api.v1.model.databases.DatabaseProperty
 import notion.api.v1.model.databases.Databases
 import notion.api.v1.model.pages.Page
+import notion.api.v1.model.pages.PageParent
 import notion.api.v1.model.pages.PageProperty
+import notion.api.v1.request.pages.CreatePageRequest
 import org.slf4j.LoggerFactory
 import pro.devsvc.unitask.connector.Connector
 import pro.devsvc.unitask.core.model.Task
@@ -52,12 +54,14 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
     )
 
     private val statusMap = mutableMapOf<String, DatabaseProperty.Select.Option>()
+    private var databaseId = ""
 
     override fun start(store: TaskStore) {
         for (db in listDatabase().results) {
             if (db.title[0].plainText != database) {
                 continue
             }
+            databaseId = db.id
             db.properties["Status"]?.select?.options?.forEach { statusMap[it.name!!.toLowerCase()] = it }
             val pages = client.queryDatabase(db.id).results
             for (page in pages) {
@@ -94,6 +98,18 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                             end = task.deadline?.format(DateTimeFormatter.ISO_DATE_TIME),
                         )),
                         "AssignedTo" to PageProperty(richText = listOf(PageProperty.RichText(plainText = task.assignedUserName)))
+                    ))
+                } else {
+                    client.createPage(CreatePageRequest(
+                        PageParent.database(databaseId),
+                        mapOf(
+                            "Status" to PageProperty(select = statusMap[task.status.toLowerCase()]),
+                            "Date" to PageProperty(date = PageProperty.Date(
+                                start = task.estStarted?.format(DateTimeFormatter.ISO_DATE_TIME),
+                                end = task.deadline?.format(DateTimeFormatter.ISO_DATE_TIME),
+                            )),
+                            "AssignedTo" to PageProperty(richText = listOf(PageProperty.RichText(plainText = task.assignedUserName)))
+                        )
                     ))
                 }
             }

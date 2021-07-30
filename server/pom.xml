@@ -50,6 +50,12 @@
             <artifactId>logback-classic</artifactId>
             <version>${logback_version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.kodein.di</groupId>
+            <artifactId>kodein-di-jvm</artifactId>
+            <version>7.6.0</version>
+        </dependency>
     </dependencies>
 
 </project>
