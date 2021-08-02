@@ -17,7 +17,7 @@
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
-        <serialization.version>1.2.1</serialization.version>
+        <serialization.version>1.2.2</serialization.version>
     </properties>
 
     <dependencies>
