@@ -1,5 +1,7 @@
 package pro.devsvc.unitask.store.nitrite
 
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializer
 import org.dizitart.no2.Document
 import org.dizitart.no2.Nitrite
 import pro.devsvc.unitask.core.model.Task
@@ -27,7 +29,7 @@ class NitriteStore : TaskStore {
 
     override fun store(task: Task) {
         val document = createDocument("id", task.id)
-        val map = Properties.encodeToMap(task)
+        val map = Properties.encodeToMap(KSerializer)
         document.putAll(map)
         val existing = load(task.id)
         if (existing != null) {
