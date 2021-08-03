@@ -1,9 +1,5 @@
 package pro.devsvc.unitask.store.nitrite
 
-import kotlinx.serialization.InternalSerializationApi
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializer
-import kotlinx.serialization.internal.MapLikeSerializer
 import org.dizitart.no2.Document
 import org.dizitart.no2.Nitrite
 import pro.devsvc.unitask.core.model.Task
@@ -11,9 +7,8 @@ import org.dizitart.no2.Document.createDocument
 import org.dizitart.no2.IndexOptions
 import org.dizitart.no2.IndexType
 import org.dizitart.no2.filters.Filters.*
-import kotlinx.serialization.properties.*
 import kotlinx.serialization.json.*
-import pro.devsvc.unitask.core.model.Project
+
 
 class NitriteStore : TaskStore {
 
@@ -32,8 +27,14 @@ class NitriteStore : TaskStore {
 
     override fun store(task: Task) {
         val document = createDocument("id", task.id)
-        val map = Json.encodeToJsonElement(task) as JsonObject
+        //
+        // TODO a more elegantly way to convert task to document
+        val jo = Json.encodeToJsonElement(task) as JsonObject
+        val customProperties = jo["customProperties"] as JsonObject
+        val map = jsonObjectToMap(jo)
+        map["customProperties"] = jsonObjectToMap(customProperties)
         document.putAll(map)
+
         val existing = load(task.id)
         if (existing != null) {
             taskCollection.update(eq("id", task.id), document)
@@ -46,6 +47,7 @@ class NitriteStore : TaskStore {
     }
 
     override fun load() = sequence {
+
         for (doc in taskCollection.find()) {
             val task = docToTask(doc)
             if (task != null) {
@@ -64,7 +66,7 @@ class NitriteStore : TaskStore {
             return null
         }
         val jsonObject = docToJsonObject(doc)
-        val task: Task = Json.decodeFromJsonElement(jsonObject)
+        val task: Task = Json{ignoreUnknownKeys = true}.decodeFromJsonElement(jsonObject)
         return task
     }
 
@@ -98,6 +100,19 @@ class NitriteStore : TaskStore {
             }
         }
         return JsonArray(a)
+    }
+
+    // json object to map<String, String?>
+    private fun jsonObjectToMap(jo: JsonObject): MutableMap<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        jo.forEach { k, v ->
+            if (v == null) {
+                map[k] = null
+            } else if (v is JsonPrimitive) {
+                map[k] = v.content
+            }
+        }
+        return map
     }
 
 }

@@ -89,31 +89,40 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
         for (task in store.load()) {
             if (task.title != null) {
                 val notionId = task.customProperties["notion_id"]
+                val properties = taskToNotionPageProperties(task)
+                if (properties.isEmpty()) {
+                    continue
+                }
 
                 if (notionId != null) {
-                    client.updatePageProperties(notionId, mapOf(
-                        "Status" to PageProperty(select = statusMap[task.status.toLowerCase()]),
-                        "Date" to PageProperty(date = PageProperty.Date(
-                            start = task.estStarted?.format(DateTimeFormatter.ISO_DATE_TIME),
-                            end = task.deadline?.format(DateTimeFormatter.ISO_DATE_TIME),
-                        )),
-                        "AssignedTo" to PageProperty(richText = listOf(PageProperty.RichText(plainText = task.assignedUserName)))
-                    ))
+                    if (properties.isNotEmpty()) {
+                        client.updatePageProperties(notionId, properties)
+                    }
                 } else {
                     client.createPage(CreatePageRequest(
                         PageParent.database(databaseId),
-                        mapOf(
-                            "Status" to PageProperty(select = statusMap[task.status.toLowerCase()]),
-                            "Date" to PageProperty(date = PageProperty.Date(
-                                start = task.estStarted?.format(DateTimeFormatter.ISO_DATE_TIME),
-                                end = task.deadline?.format(DateTimeFormatter.ISO_DATE_TIME),
-                            )),
-                            "AssignedTo" to PageProperty(richText = listOf(PageProperty.RichText(plainText = task.assignedUserName)))
-                        )
+                        taskToNotionPageProperties(task)
                     ))
                 }
             }
         }
+    }
+
+    private fun taskToNotionPageProperties(task: Task): MutableMap<String, PageProperty> {
+        val properties = mutableMapOf<String, PageProperty>()
+        if (task.status.isNotBlank()) {
+            properties["Status"] = PageProperty(select = statusMap[task.status.toLowerCase()])
+        }
+        if (task.estStarted != null || task.deadline != null) {
+            properties["Date"] = PageProperty(date = PageProperty.Date(
+                start = task.estStarted?.format(DateTimeFormatter.ISO_DATE_TIME),
+                end = task.deadline?.format(DateTimeFormatter.ISO_DATE_TIME),
+            ))
+        }
+        if (task.assignedUserName.isNotBlank()) {
+            properties["AssignedTo"] = PageProperty(richText = listOf(PageProperty.RichText(plainText = task.assignedUserName)))
+        }
+        return properties
     }
 
     private fun parseDateTime(str: String?): ZonedDateTime? {
