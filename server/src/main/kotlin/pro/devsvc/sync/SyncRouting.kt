@@ -17,10 +17,10 @@ class SyncRouting {
 fun Route.start() {
     get("/sync") {
         val store by call.closestDI().instance<TaskStore>()
-        // ZentaoConnector(
-        //     "http://pms.sinandata.com:8088/biz/",
-        //     System.getProperty("ztUser"),
-        //     System.getProperty("ztPwd")).start(store)
+         ZentaoConnector(
+             "http://pms.sinandata.com:8088/biz/",
+             System.getProperty("ztUser"),
+             System.getProperty("ztPwd")).start(store)
         NotionConnector(database = "Tasks").start(store)
         call.respondText("ok")
     }

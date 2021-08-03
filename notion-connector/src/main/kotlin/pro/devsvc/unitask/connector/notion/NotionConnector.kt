@@ -9,6 +9,8 @@ import notion.api.v1.model.databases.Databases
 import notion.api.v1.model.pages.Page
 import notion.api.v1.model.pages.PageParent
 import notion.api.v1.model.pages.PageProperty
+import notion.api.v1.model.pages.PageProperty.RichText
+import notion.api.v1.model.pages.PageProperty.RichText.Text
 import notion.api.v1.request.pages.CreatePageRequest
 import org.slf4j.LoggerFactory
 import pro.devsvc.unitask.connector.Connector
@@ -49,12 +51,12 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
 
     private val client = NotionClient(
         token = token,
-        httpClient = HttpUrlConnNotionHttpClient(connectTimeoutMillis = 10_000),
+        httpClient = OkHttp4Client(connectTimeoutMillis = 10_000),
         logger = Slf4jLogger(),
     )
 
-    private val statusMap = mutableMapOf<String, DatabaseProperty.Select.Option>()
     private var databaseId = ""
+    private val schema = mutableMapOf<String, DatabaseProperty>()
 
     override fun start(store: TaskStore) {
         for (db in listDatabase().results) {
@@ -62,7 +64,8 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                 continue
             }
             databaseId = db.id
-            db.properties["Status"]?.select?.options?.forEach { statusMap[it.name!!.toLowerCase()] = it }
+            schema.putAll(db.properties)
+
             val pages = client.queryDatabase(db.id).results
             for (page in pages) {
                 syncToStore(page, store)
@@ -110,19 +113,33 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
 
     private fun taskToNotionPageProperties(task: Task): MutableMap<String, PageProperty> {
         val properties = mutableMapOf<String, PageProperty>()
+        if (task.title.isNotBlank()) {
+            properties["Name"] = PageProperty(title = listOf(
+                RichText(text = Text(task.title))
+            ))
+        }
         if (task.status.isNotBlank()) {
-            properties["Status"] = PageProperty(select = statusMap[task.status.toLowerCase()])
+            properties["Status"] = PageProperty(select = findOptionInSchema("Status", task.status))
         }
         if (task.estStarted != null || task.deadline != null) {
             properties["Date"] = PageProperty(date = PageProperty.Date(
-                start = task.estStarted?.format(DateTimeFormatter.ISO_DATE_TIME),
-                end = task.deadline?.format(DateTimeFormatter.ISO_DATE_TIME),
+                start = task.estStarted?.format(DateTimeFormatter.ISO_INSTANT),
+                end = task.deadline?.format(DateTimeFormatter.ISO_INSTANT),
             ))
         }
         if (task.assignedUserName.isNotBlank()) {
-            properties["AssignedTo"] = PageProperty(richText = listOf(PageProperty.RichText(plainText = task.assignedUserName)))
+            properties["AssignedTo"] = PageProperty(richText = listOf(RichText(text = Text(task.assignedUserName))))
         }
+        properties["Type"] = PageProperty(select = findOptionInSchema("Type", task.type.name))
         return properties
+    }
+
+    private fun findOptionInSchema(propertyName: String, optionValue: String): DatabaseProperty.Select.Option? {
+        val property = schema[propertyName]
+        if (property != null) {
+            return property.select?.options?.find { it.name.equals(optionValue, ignoreCase = true) }
+        }
+        return null
     }
 
     private fun parseDateTime(str: String?): ZonedDateTime? {

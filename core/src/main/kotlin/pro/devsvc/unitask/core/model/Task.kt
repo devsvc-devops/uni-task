@@ -44,7 +44,7 @@ data class Task(
     var customProperties = mutableMapOf<String, String?>()
 }
 
-enum class TaskType(val type: String) {
+enum class TaskType(name: String) {
     TASK("Task"),
     PROJECT("Project"),
     BUG("Bug"),
