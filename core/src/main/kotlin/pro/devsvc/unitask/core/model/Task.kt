@@ -11,8 +11,6 @@ import kotlinx.serialization.Serializer
 
 @Serializable
 data class Task(
-    /** id from notion is uuid, so have to be string */
-    var id: String,
     var title: String,
     var type: TaskType = TaskType.TASK
 ) {

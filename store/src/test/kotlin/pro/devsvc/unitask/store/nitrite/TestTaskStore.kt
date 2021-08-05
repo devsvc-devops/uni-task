@@ -11,7 +11,7 @@ class TestTaskStore {
     @Test
     fun test() {
         val store = NitriteStore()
-        val task = Task("1", "aaa")
+        val task = Task("aaa")
         task.desc = "111"
         val now = ZonedDateTime.now()
         task.estStarted = now
@@ -23,4 +23,5 @@ class TestTaskStore {
         assertEquals("111", task2.desc)
         assertEquals(now, task2.estStarted)
     }
+
 }

@@ -3,7 +3,6 @@ package pro.devsvc.unitask.store.nitrite
 import org.dizitart.no2.Document
 import org.dizitart.no2.Nitrite
 import pro.devsvc.unitask.core.model.Task
-import org.dizitart.no2.Document.createDocument
 import org.dizitart.no2.IndexOptions
 import org.dizitart.no2.IndexType
 import org.dizitart.no2.filters.Filters.*
@@ -26,20 +25,21 @@ class NitriteStore : TaskStore {
     }
 
     override fun store(task: Task) {
-        val document = createDocument("id", task.id)
+        val document = Document()
         //
         // TODO a more elegantly way to convert task to document
         val jo = Json.encodeToJsonElement(task) as JsonObject
         val customProperties = jo["customProperties"]
         val map = jsonObjectToMap(jo)
         if (customProperties != null) {
+            val customDoc = Docume
             map["customProperties"] = jsonObjectToMap(customProperties as JsonObject)
         }
         document.putAll(map)
 
-        val existing = load(task.id)
+        val existing = load(task.title)
         if (existing != null) {
-            taskCollection.update(eq("id", task.id), document)
+            taskCollection.update(eq("title", task.title), document)
         } else {
             taskCollection.insert(document)
         }
@@ -49,7 +49,6 @@ class NitriteStore : TaskStore {
     }
 
     override fun load() = sequence {
-
         for (doc in taskCollection.find()) {
             val task = docToTask(doc)
             if (task != null) {
@@ -58,8 +57,8 @@ class NitriteStore : TaskStore {
         }
     }
 
-    override fun load(id: String): Task? {
-        val doc = taskCollection.find(eq("id", id)).firstOrDefault()
+    override fun load(title: String): Task? {
+        val doc = taskCollection.find(eq("title", title)).firstOrDefault()
         return docToTask(doc)
     }
 

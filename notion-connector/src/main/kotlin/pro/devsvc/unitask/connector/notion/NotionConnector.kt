@@ -77,7 +77,7 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
     private fun syncToStore(page: Page, store: TaskStore) {
         val title = page.properties["Name"]?.title?.firstOrNull()?.plainText
         if (title != null) {
-            val task = Task(page.id, title)
+            val task = Task(title)
             task.customProperties["notion_id"] = page.id
             task.customProperties["status"] = page.properties["Status"]?.select?.id
             task.createTime = parseDateTime(page.createdTime)

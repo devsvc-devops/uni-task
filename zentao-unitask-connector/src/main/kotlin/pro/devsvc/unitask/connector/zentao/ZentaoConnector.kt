@@ -14,6 +14,7 @@ class ZentaoConnector(baseUrl: String,
                       username: String,
                       password: String) : Connector {
 
+
     val sdk: ZentaoSDK = ZentaoSDK(baseUrl)
 
     init {
@@ -52,26 +53,28 @@ class ZentaoConnector(baseUrl: String,
     }
 
     private fun zProjectToUniTask(project: Project): UniTask {
-        val uTask = UniTask("zProject-" + project.id.toString(), project.name, TaskType.PROJECT)
+        val uTask = UniTask(project.name, TaskType.PROJECT)
         uTask.estStarted = project.begin?.atZone(ZoneId.systemDefault())
         uTask.deadline = project.end?.atZone(ZoneId.systemDefault())
         uTask.planId = project.plans.joinToString()
         uTask.projectId = project.id.toString()
         uTask.productId = project.products.joinToString()
+        uTask.customProperties["zId"] = "zProject-${project.id}"
         return uTask
     }
 
     private fun zProjectTeamToPerson(zTask: Project): MutableList<UniTask> {
         val persons = mutableListOf<UniTask>()
         zTask.teamMembers.map {
-            val uTask = UniTask("zPerson-" + it.id, it.realName, TaskType.PERSON)
+            val uTask = UniTask(it.realName, TaskType.PERSON)
+            uTask.customProperties["zId"] = "zPerson-${it.id}"
             persons.add(uTask)
         }
         return persons
     }
 
     private fun zTaskToUniTask(zTask: Task): UniTask {
-        val uTask = UniTask("zTask-" + zTask.id.toString(), zTask.name, TaskType.TASK)
+        val uTask = UniTask(zTask.name, TaskType.TASK)
         uTask.estStarted = zTask.estStarted?.atZone(ZoneId.systemDefault())
         uTask.deadline = zTask.deadline?.atZone(ZoneId.systemDefault())
         uTask.planId = sdk.getProject(zTask.project)?.plans?.joinToString()
@@ -80,6 +83,7 @@ class ZentaoConnector(baseUrl: String,
         uTask.assignedUserId = zTask.assignedTo
         uTask.status = zTask.status
         uTask.lastEditTime = zTask.lastEditedDate?.atZone(ZoneId.systemDefault())
+        uTask.customProperties["zId"] = "zTask-${zTask.id}"
         return uTask
     }
 
