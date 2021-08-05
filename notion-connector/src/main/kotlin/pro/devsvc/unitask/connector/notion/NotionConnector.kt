@@ -29,6 +29,7 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
 
     private val log = LoggerFactory.getLogger(javaClass)
     private var formatter: DateTimeFormatter
+    private val NOTION_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
 
     init {
         val dtfb = DateTimeFormatterBuilder()
@@ -104,7 +105,7 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                 } else {
                     client.createPage(CreatePageRequest(
                         PageParent.database(databaseId),
-                        taskToNotionPageProperties(task)
+                        properties
                     ))
                 }
             }
@@ -122,9 +123,12 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
             properties["Status"] = PageProperty(select = findOptionInSchema("Status", task.status))
         }
         if (task.estStarted != null || task.deadline != null) {
+            if (task.estStarted == null) {
+                task.estStarted = task.deadline
+            }
             properties["Date"] = PageProperty(date = PageProperty.Date(
-                start = task.estStarted?.format(DateTimeFormatter.ISO_INSTANT),
-                end = task.deadline?.format(DateTimeFormatter.ISO_INSTANT),
+                start = task.estStarted?.format(NOTION_FMT),
+                end = task.deadline?.format(NOTION_FMT),
             ))
         }
         if (task.assignedUserName.isNotBlank()) {

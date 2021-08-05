@@ -32,8 +32,9 @@ class NitriteStore : TaskStore {
         val customProperties = jo["customProperties"]
         val map = jsonObjectToMap(jo)
         if (customProperties != null) {
-            val customDoc = Docume
-            map["customProperties"] = jsonObjectToMap(customProperties as JsonObject)
+            val customDoc = Document()
+            customDoc.putAll(jsonObjectToMap(customProperties as JsonObject))
+            map["customProperties"] = customDoc
         }
         document.putAll(map)
 
