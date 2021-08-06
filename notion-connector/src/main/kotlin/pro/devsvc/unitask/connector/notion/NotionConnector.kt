@@ -1,11 +1,12 @@
 package pro.devsvc.unitask.connector.notion
 
 import notion.api.v1.NotionClient
-import notion.api.v1.http.HttpUrlConnNotionHttpClient
 import notion.api.v1.http.OkHttp4Client
 import notion.api.v1.logging.Slf4jLogger
 import notion.api.v1.model.databases.DatabaseProperty
 import notion.api.v1.model.databases.Databases
+import notion.api.v1.model.databases.query.filter.condition.SelectFilter
+import notion.api.v1.model.databases.query.filter.condition.TextFilter
 import notion.api.v1.model.pages.Page
 import notion.api.v1.model.pages.PageParent
 import notion.api.v1.model.pages.PageProperty
@@ -78,6 +79,12 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
     private fun syncToStore(page: Page, store: TaskStore) {
         val title = page.properties["Name"]?.title?.firstOrNull()?.plainText
         if (title != null) {
+            // handle if renamed
+            val existing = store.find(mapOf("customProperties.notion_id" to page.id))
+            if (existing != null) {
+                log.error("")
+            }
+
             val task = Task(title)
             task.customProperties["notion_id"] = page.id
             task.customProperties["status"] = page.properties["Status"]?.select?.id
@@ -85,6 +92,10 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
             task.estStarted = parseDateTime(page.properties["Due Date"]?.date?.start)
             task.deadline = parseDateTime(page.properties["Due Date"]?.date?.end)
             task.lastEditTime = parseDateTime(page.lastEditedTime)
+            val typeName = page.properties["Type"]?.select?.name
+            if (typeName != null && typeName.isNotBlank()) {
+                task.type = TaskType.valueOf(typeName.toUpperCase())
+            }
             store.store(task)
         }
     }
@@ -98,9 +109,33 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                     continue
                 }
 
+                if (task.type == TaskType.TASK && task.projectName != null) {
+                    // if project is already in notion, construct the relation
+                    // if not, have to do this in next sync. TODO: better solution?
+                    val projectInNotion = client.queryDatabase(databaseId, NCompoundFilter(
+                        and = listOf(
+                            NPropertyFilter("Name", title = TextFilter(task.projectName)),
+                            NPropertyFilter("Type", select = SelectFilter("Project"))
+                        )
+                    ))
+                    if (projectInNotion.results.isNotEmpty()) {
+                        val projectInNotionPage = projectInNotion.results[0]
+                        properties["Project"] = PageProperty(relation = listOf(
+                            PageProperty.PageReference(projectInNotionPage.id)
+                        ))
+                    }
+                }
+
                 if (notionId != null) {
                     if (properties.isNotEmpty()) {
-                        client.updatePageProperties(notionId, properties)
+                        val page = client.retrievePage(notionId)
+                        val notionLastEditTime = parseDateTime(page.lastEditedTime)
+                        if (notionLastEditTime!!.isBefore(task.lastEditTime)) {
+                            val result = client.updatePageProperties(notionId, properties)
+                            log.debug("update result $result")
+                        } else {
+                            log.debug("task ${task.title} last edit time is before or equals to notion's last edit time, skip...")
+                        }
                     }
                 } else {
                     client.createPage(CreatePageRequest(
@@ -134,7 +169,10 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
         if (task.assignedUserName.isNotBlank()) {
             properties["AssignedTo"] = PageProperty(richText = listOf(RichText(text = Text(task.assignedUserName))))
         }
+
+        properties["ProjectName"] = PageProperty(richText = listOf(RichText(text = Text(task.projectName?:""))))
         properties["Type"] = PageProperty(select = findOptionInSchema("Type", task.type.name))
+        properties["last_edited_time"] = PageProperty(richText = listOf(RichText(text = Text(task.lastEditTime?.format(NOTION_FMT)?:""))))
         return properties
     }
 
@@ -155,13 +193,6 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
 
     fun listDatabase(): Databases {
         return client.listDatabases()
-    }
-
-    fun test() {
-        val databases = listDatabase()
-        for (db in databases.results) {
-            val qdb = client.queryDatabase(db.id).results
-        }
     }
 }
 

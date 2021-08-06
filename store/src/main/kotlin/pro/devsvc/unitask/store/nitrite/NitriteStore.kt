@@ -24,7 +24,7 @@ class NitriteStore : TaskStore {
         }
     }
 
-    override fun store(task: Task) {
+    override fun store(task: Task, oldTask: Task? = null) {
         val document = Document()
         //
         // TODO a more elegantly way to convert task to document
@@ -40,7 +40,10 @@ class NitriteStore : TaskStore {
 
         val existing = load(task.title)
         if (existing != null) {
-            taskCollection.update(eq("title", task.title), document)
+            val existingLastEditTime = existing.lastEditTime
+            if (existingLastEditTime != null && task.lastEditTime != null && existingLastEditTime.isBefore(task.lastEditTime)) {
+                taskCollection.update(eq("title", task.title), document)
+            }
         } else {
             taskCollection.insert(document)
         }
@@ -63,6 +66,14 @@ class NitriteStore : TaskStore {
         return docToTask(doc)
     }
 
+    override fun find(map: Map<String, Any?>): Task? {
+        val filters = map.map { (k, v) ->
+            eq(k, v)
+        }.toTypedArray()
+        val doc = taskCollection.find(and(*filters)).firstOrDefault()
+        return docToTask(doc)
+    }
+
     fun docToTask(doc: Document?): Task? {
         if (doc == null) {
             return null
@@ -74,7 +85,7 @@ class NitriteStore : TaskStore {
 
     private fun docToJsonObject(doc: Map<*, *>): JsonElement {
         val m = mutableMapOf<String, JsonElement>()
-        doc.forEach { k, v ->
+        doc.forEach { (k, v) ->
             when (v) {
                 is Map<*, *> -> m[k.toString()] = docToJsonObject(v)
                 is Array<*> -> m[k.toString()] = arrayToJsonElement(v)

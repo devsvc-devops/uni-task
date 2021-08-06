@@ -56,9 +56,12 @@ class ZentaoConnector(baseUrl: String,
         val uTask = UniTask(project.name, TaskType.PROJECT)
         uTask.estStarted = project.begin?.atZone(ZoneId.systemDefault())
         uTask.deadline = project.end?.atZone(ZoneId.systemDefault())
-        uTask.planId = project.plans.joinToString()
-        uTask.projectId = project.id.toString()
-        uTask.productId = project.products.joinToString()
+        // uTask.planId = project.plans.joinToString()
+        // uTask.planName =
+        // uTask.projectId = project.id.toString()
+        uTask.projectName = project.name
+        // uTask.productId = project.products.joinToString()
+
         uTask.customProperties["zId"] = "zProject-${project.id}"
         return uTask
     }
@@ -77,9 +80,11 @@ class ZentaoConnector(baseUrl: String,
         val uTask = UniTask(zTask.name, TaskType.TASK)
         uTask.estStarted = zTask.estStarted?.atZone(ZoneId.systemDefault())
         uTask.deadline = zTask.deadline?.atZone(ZoneId.systemDefault())
-        uTask.planId = sdk.getProject(zTask.project)?.plans?.joinToString()
-        uTask.projectId = zTask.project?.toString()
-        uTask.productId = zTask.product?.toString()
+        // uTask.planId = sdk.getProject(zTask.project)?.plans?.joinToString()
+        // uTask.projectId = zTask.project?.toString()
+        // uTask.productId = zTask.product?.toString()
+        val project = sdk.getProject(zTask.project)
+        uTask.projectName = project?.name
         uTask.assignedUserId = zTask.assignedTo
         uTask.status = zTask.status
         uTask.lastEditTime = zTask.lastEditedDate?.atZone(ZoneId.systemDefault())

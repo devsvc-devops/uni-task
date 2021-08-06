@@ -32,11 +32,8 @@ data class Task(
     var lastEditTime: ZonedDateTime? = null
     var lastEditBy: String = ""
 
-    var projectId: String? = null
     var projectName: String? = null
-    var planId: String? = null
     var planName: String? = null
-    var productId: String? = null
     var productName: String? = null
 
     var customProperties = mutableMapOf<String, String?>()
