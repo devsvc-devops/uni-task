@@ -16,9 +16,11 @@ object NotionDatabaseInitializer {
         "Status" to DatabaseProperty(
             PropertyType.Select,
             "status",
-            select = DatabaseProperty.Select(listOf(
-                DatabaseProperty.Select.Option()
-            ))
+            select = DatabaseProperty.Select(
+                listOf(
+                    DatabaseProperty.Select.Option()
+                )
+            )
         ),
         "Due Date" to DatabaseProperty(
             PropertyType.Date,
@@ -28,7 +30,6 @@ object NotionDatabaseInitializer {
     )
 
     fun init(client: NotionClient, database: Database) {
-        //client.updatePageProperties()
+        // client.updatePageProperties()
     }
-
 }

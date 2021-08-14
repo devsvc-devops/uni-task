@@ -23,7 +23,7 @@
 
     <modules>
         <module>core</module>
-        <module>zentao-unitask-connector</module>
+        <module>zentao-connector</module>
         <module>store</module>
         <module>notion-connector</module>
         <module>connector</module>

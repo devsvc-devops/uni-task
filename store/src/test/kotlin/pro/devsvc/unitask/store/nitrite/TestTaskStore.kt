@@ -17,11 +17,10 @@ class TestTaskStore {
         task.estStarted = now
         store.store(task)
 //        store.db.commit()
-        val task2 = store.load("1")
+        val task2 = store.find("1")
         assertNotNull(task2)
         assertEquals("aaa", task2.title)
         assertEquals("111", task2.desc)
         assertEquals(now, task2.estStarted)
     }
-
 }

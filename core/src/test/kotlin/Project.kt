@@ -11,7 +11,7 @@ class Project(val name: String, val owner: User)
 class User(val name: String)
 
 fun main() {
-    val data = Project("kotlinx.serialization",  User("kotlin"))
+    val data = Project("kotlinx.serialization", User("kotlin"))
     val map = Properties.encodeToMap(data)
     map.forEach { (k, v) -> println("$k = $v") }
 }

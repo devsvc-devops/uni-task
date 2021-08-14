@@ -8,7 +8,6 @@ import org.dizitart.no2.IndexType
 import org.dizitart.no2.filters.Filters.*
 import kotlinx.serialization.json.*
 
-
 class NitriteStore : TaskStore {
 
     private val db = Nitrite.builder()
@@ -24,7 +23,7 @@ class NitriteStore : TaskStore {
         }
     }
 
-    override fun store(task: Task, oldTask: Task? = null) {
+    override fun store(task: Task, oldTask: Task?) {
         val document = Document()
         //
         // TODO a more elegantly way to convert task to document
@@ -38,7 +37,7 @@ class NitriteStore : TaskStore {
         }
         document.putAll(map)
 
-        val existing = load(task.title)
+        val existing = find(task.title)
         if (existing != null) {
             val existingLastEditTime = existing.lastEditTime
             if (existingLastEditTime != null && task.lastEditTime != null && existingLastEditTime.isBefore(task.lastEditTime)) {
@@ -52,7 +51,7 @@ class NitriteStore : TaskStore {
     override fun store(tasks: List<Task>) {
     }
 
-    override fun load() = sequence {
+    override fun list() = sequence {
         for (doc in taskCollection.find()) {
             val task = docToTask(doc)
             if (task != null) {
@@ -61,7 +60,7 @@ class NitriteStore : TaskStore {
         }
     }
 
-    override fun load(title: String): Task? {
+    override fun find(title: String): Task? {
         val doc = taskCollection.find(eq("title", title)).firstOrDefault()
         return docToTask(doc)
     }
@@ -79,7 +78,7 @@ class NitriteStore : TaskStore {
             return null
         }
         val jsonObject = docToJsonObject(doc)
-        val task: Task = Json{ignoreUnknownKeys = true}.decodeFromJsonElement(jsonObject)
+        val task: Task = Json { ignoreUnknownKeys = true }.decodeFromJsonElement(jsonObject)
         return task
     }
 
@@ -127,5 +126,4 @@ class NitriteStore : TaskStore {
         }
         return map
     }
-
 }

@@ -1,6 +1,5 @@
 package pro.devsvc.unitask.connector.notion
 
-import notion.api.v1.model.common.PropertyType
 import notion.api.v1.model.databases.query.filter.QueryTopLevelFilter
 import notion.api.v1.model.databases.query.filter.condition.*
 
@@ -23,5 +22,4 @@ open class NPropertyFilter(
     var file: FilesFilter? = null,
     var relation: RelationFilter? = null,
     var formula: FormulaFilter? = null,
-) : QueryTopLevelFilter {
-}
+) : QueryTopLevelFilter

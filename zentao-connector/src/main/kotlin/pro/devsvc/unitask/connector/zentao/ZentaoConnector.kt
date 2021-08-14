@@ -10,10 +10,11 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import pro.devsvc.unitask.core.model.Task as UniTask
 
-class ZentaoConnector(baseUrl: String,
-                      username: String,
-                      password: String) : Connector {
-
+class ZentaoConnector(
+    baseUrl: String,
+    username: String,
+    password: String
+) : Connector {
 
     val sdk: ZentaoSDK = ZentaoSDK(baseUrl)
 
@@ -30,9 +31,10 @@ class ZentaoConnector(baseUrl: String,
         val products = sdk.getAllProducts()
         for (product in products) {
             sdk.getProjectsOfProduct(product.id)?.forEach {
-                if (it.begin!!.isBefore(LocalDateTime.of(2020, 12, 20, 0, 0, 0))
-                    || it.status == "closed"
-                    || it.status == "canceled") {
+                if (it.begin!!.isBefore(LocalDateTime.of(2020, 12, 20, 0, 0, 0)) ||
+                    it.status == "closed" ||
+                    it.status == "canceled"
+                ) {
                     return@forEach
                 }
 
@@ -49,7 +51,10 @@ class ZentaoConnector(baseUrl: String,
     }
 
     private fun syncFromStore(store: TaskStore) {
+        for (task in store.list()) {
+            val zId = task.customProperties["zId"]
 
+        }
     }
 
     private fun zProjectToUniTask(project: Project): UniTask {
@@ -91,5 +96,4 @@ class ZentaoConnector(baseUrl: String,
         uTask.customProperties["zId"] = "zTask-${zTask.id}"
         return uTask
     }
-
 }

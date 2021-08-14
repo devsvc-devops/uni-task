@@ -19,10 +19,12 @@ class TestSer {
 
     @Test
     fun test() {
-        val data = Data(mapOf(
-            "a" to "1",
-            "b" to null
-        ))
+        val data = Data(
+            mapOf(
+                "a" to "1",
+                "b" to null
+            )
+        )
 
         val map = Properties.encodeToMap(data)
         println(map)
@@ -30,13 +32,14 @@ class TestSer {
         println(data1)
     }
 
-
     @Test
     fun test2() {
-        val data = Data(mapOf(
-            "a" to "1",
-            "b" to null
-        ))
+        val data = Data(
+            mapOf(
+                "a" to "1",
+                "b" to null
+            )
+        )
 
         val map = Json.encodeToJsonElement(data) as JsonObject
         println(map)

@@ -101,7 +101,7 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
     }
 
     private fun syncToNotion(store: TaskStore) {
-        for (task in store.load()) {
+        for (task in store.list()) {
             if (task.title != null) {
                 val notionId = task.customProperties["notion_id"]
                 val properties = taskToNotionPageProperties(task)

@@ -1,6 +1,5 @@
 package pro.devsvc.unitask.store.nitrite
 
-import com.google.gson.Gson
 import org.dizitart.no2.Document
 import org.dizitart.no2.Nitrite
 import org.junit.Test
@@ -44,7 +43,7 @@ class TestStore {
         // val d2 =
     }
 
-    inline fun <reified T : Any> T.asMap() : Map<String, Any?> {
+    inline fun <reified T : Any> T.asMap(): Map<String, Any?> {
         val props = T::class.memberProperties.associateBy { it.name }
         return props.keys.associateWith { props[it]?.get(this) }
     }

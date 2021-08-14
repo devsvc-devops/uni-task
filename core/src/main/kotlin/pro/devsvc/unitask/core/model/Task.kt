@@ -5,9 +5,8 @@ import pro.devsvc.unitask.core.serial.KZonedDateTimeSerializer
 import java.time.ZonedDateTime
 import kotlinx.datetime.DateTimePeriod
 import kotlinx.datetime.serializers.DateTimePeriodIso8601Serializer
-import kotlinx.serialization.Serializer
 
-//typealias UniTask = Task
+// typealias UniTask = Task
 
 @Serializable
 data class Task(
