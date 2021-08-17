@@ -1,9 +1,12 @@
 package pro.devsvc.unitask.connector.zentao
 
 import pro.devsvc.unitask.connector.Connector
+import pro.devsvc.unitask.core.model.TaskPriority
 import pro.devsvc.unitask.core.model.TaskType
 import pro.devsvc.unitask.store.nitrite.TaskStore
+import pro.devsvc.zentao.sdk.ZTask
 import pro.devsvc.zentao.sdk.ZentaoSDK
+import pro.devsvc.zentao.sdk.saveTask
 import pro.devsvc.zentao.sdk.usermodel.Project
 import pro.devsvc.zentao.sdk.usermodel.Task
 import java.time.LocalDateTime
@@ -53,7 +56,45 @@ class ZentaoConnector(
     private fun syncFromStore(store: TaskStore) {
         for (task in store.list()) {
             val zId = task.customProperties["zId"]
-
+            if (zId != null) {
+                val id = zId.substringAfterLast("-").toInt()
+                when (task.type) {
+                    TaskType.TASK -> {
+                        val zTask = sdk.getTask(id)
+                        val storeLastEditTime = task.lastEditTime
+                        val zentaoLastEditTime = zTask?.lastEditedDate?.atZone(ZoneId.systemDefault())
+                        if (storeLastEditTime != null && zentaoLastEditTime != null &&
+                            storeLastEditTime.isAfter(zentaoLastEditTime)) {
+                            uniTaskToZTask(task, zTask)
+                            val project = task.projectName?.let { store.find(it) }
+                            if (project != null) {
+                                val projectId = project.customProperties["zId"]?.substringAfterLast("-")?.toInt()
+                                if (projectId != null) {
+                                    zTask.project = projectId
+                                }
+                            }
+                            sdk.saveTask(zTask)
+                        }
+                    }
+                    else -> {}
+                }
+            } else {
+                when (task.type) {
+                    TaskType.TASK -> {
+                        val zTask = Task(sdk, -1, task.title)
+                        uniTaskToZTask(task, zTask)
+                        val project = task.projectName?.let { store.find(it) }
+                        if (project != null) {
+                            val projectId = project.customProperties["zId"]?.substringAfterLast("-")?.toInt()
+                            if (projectId != null) {
+                                zTask.project = projectId
+                            }
+                        }
+                        sdk.createTask(zTask)
+                    }
+                    else -> {}
+                }
+            }
         }
     }
 
@@ -92,8 +133,19 @@ class ZentaoConnector(
         uTask.projectName = project?.name
         uTask.assignedUserId = zTask.assignedTo
         uTask.status = zTask.status
+        uTask.priority = TaskPriority.getById(zTask.pri - 1)
         uTask.lastEditTime = zTask.lastEditedDate?.atZone(ZoneId.systemDefault())
         uTask.customProperties["zId"] = "zTask-${zTask.id}"
         return uTask
+    }
+
+    private fun uniTaskToZTask(uTask: UniTask, zTask: Task) {
+        zTask.name = uTask.title
+        zTask.estStarted = uTask.estStarted?.toLocalDateTime()
+        zTask.deadline = uTask.deadline?.toLocalDateTime()
+        // zTask.project =
+        zTask.status = uTask.status
+        zTask.assignedToRealName = uTask.assignedUserName
+        zTask.pri = TaskPriority.values().indexOf(uTask.priority) + 1
     }
 }

@@ -31,6 +31,8 @@ data class Task(
     var lastEditTime: ZonedDateTime? = null
     var lastEditBy: String = ""
 
+    var priority: TaskPriority = TaskPriority.NORMAL
+
     var projectName: String? = null
     var planName: String? = null
     var productName: String? = null
@@ -50,4 +52,20 @@ enum class TaskStatus(val code: String, name: String, val color: String) {
     DOING("2", "Doing", "yellow"),
     DONE("3", "Done", "green"),
     CLOSED("4", "Closed", "gray")
+}
+
+enum class TaskPriority(name: String) {
+    URGENT("紧急"),
+    IMPORTANT("重要"),
+    NORMAL("一般"),
+    UNIMPORTANT("不重要");
+
+    companion object {
+        fun getByName(name: String): TaskPriority {
+            return values().first { it.name == name}
+        }
+        fun getById(id: Int): TaskPriority {
+            return values()[id]
+        }
+    }
 }

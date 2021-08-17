@@ -170,9 +170,11 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
             properties["AssignedTo"] = PageProperty(richText = listOf(RichText(text = Text(task.assignedUserName))))
         }
 
-        properties["ProjectName"] = PageProperty(richText = listOf(RichText(text = Text(task.projectName?:""))))
+        if (task.projectName != null) {
+            val option = findOptionInSchema("ProjectName", task.projectName!!)
+            option?.let { properties["ProjectName"] = PageProperty(select = option) }
+        }
         properties["Type"] = PageProperty(select = findOptionInSchema("Type", task.type.name))
-        properties["last_edited_time"] = PageProperty(richText = listOf(RichText(text = Text(task.lastEditTime?.format(NOTION_FMT)?:""))))
         return properties
     }
 
