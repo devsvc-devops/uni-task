@@ -29,10 +29,12 @@ class NitriteStore : TaskStore {
         // TODO a more elegantly way to convert task to document
         val jo = Json.encodeToJsonElement(task) as JsonObject
         val customProperties = jo["customProperties"]
+        val customPropertiesMap = jsonObjectToMap(customProperties as JsonObject)
         val map = jsonObjectToMap(jo)
+        val customDoc = Document()
+
         if (customProperties != null) {
-            val customDoc = Document()
-            customDoc.putAll(jsonObjectToMap(customProperties as JsonObject))
+            customDoc.putAll(customPropertiesMap)
             map["customProperties"] = customDoc
         }
         document.putAll(map)
@@ -41,6 +43,8 @@ class NitriteStore : TaskStore {
         if (existing != null) {
             val existingLastEditTime = existing.lastEditTime
             if (existingLastEditTime != null && task.lastEditTime != null && existingLastEditTime.isBefore(task.lastEditTime)) {
+                val existingCustomProperties = existing.customProperties
+                customDoc.putAll(existingCustomProperties)
                 taskCollection.update(eq("title", task.title), document)
             }
         } else {
