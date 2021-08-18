@@ -2,6 +2,7 @@ package pro.devsvc.unitask.connector.zentao
 
 import pro.devsvc.unitask.connector.Connector
 import pro.devsvc.unitask.core.model.TaskPriority
+import pro.devsvc.unitask.core.model.TaskStatus
 import pro.devsvc.unitask.core.model.TaskType
 import pro.devsvc.unitask.store.nitrite.TaskStore
 import pro.devsvc.zentao.sdk.ZTask
@@ -132,7 +133,7 @@ class ZentaoConnector(
         val project = sdk.getProject(zTask.project)
         uTask.projectName = project?.name
         uTask.assignedUserId = zTask.assignedTo
-        uTask.status = zTask.status
+        uTask.status = TaskStatus.getByName(zTask.status)
         uTask.priority = TaskPriority.getById(zTask.pri - 1)
         uTask.lastEditTime = zTask.lastEditedDate?.atZone(ZoneId.systemDefault())
         uTask.customProperties["zId"] = "zTask-${zTask.id}"
@@ -144,7 +145,7 @@ class ZentaoConnector(
         zTask.estStarted = uTask.estStarted?.toLocalDateTime()
         zTask.deadline = uTask.deadline?.toLocalDateTime()
         // zTask.project =
-        zTask.status = uTask.status
+        zTask.status = uTask.status.name
         zTask.assignedToRealName = uTask.assignedUserName
         zTask.pri = TaskPriority.values().indexOf(uTask.priority) + 1
     }

@@ -16,6 +16,7 @@ import notion.api.v1.request.pages.CreatePageRequest
 import org.slf4j.LoggerFactory
 import pro.devsvc.unitask.connector.Connector
 import pro.devsvc.unitask.core.model.Task
+import pro.devsvc.unitask.core.model.TaskStatus
 import pro.devsvc.unitask.core.model.TaskType
 import pro.devsvc.unitask.store.nitrite.TaskStore
 import java.time.ZoneId
@@ -87,11 +88,15 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
 
             val task = Task(title)
             task.customProperties["notion_id"] = page.id
-            task.customProperties["status"] = page.properties["Status"]?.select?.id
+            val pageStatus = page.properties["Status"]?.select?.name
+            if (pageStatus != null) {
+                task.status = TaskStatus.getByName(pageStatus)
+            }
             task.createTime = parseDateTime(page.createdTime)
             task.estStarted = parseDateTime(page.properties["Due Date"]?.date?.start)
             task.deadline = parseDateTime(page.properties["Due Date"]?.date?.end)
             task.lastEditTime = parseDateTime(page.lastEditedTime)
+            task.projectName = page.properties["ProjectName"]?.select?.name
             val typeName = page.properties["Type"]?.select?.name
             if (typeName != null && typeName.isNotBlank()) {
                 task.type = TaskType.valueOf(typeName.toUpperCase())
@@ -124,6 +129,7 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                             PageProperty.PageReference(projectInNotionPage.id)
                         ))
                     }
+
                 }
 
                 if (notionId != null) {
@@ -154,9 +160,8 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                 RichText(text = Text(task.title))
             ))
         }
-        if (task.status.isNotBlank()) {
-            properties["Status"] = PageProperty(select = findOptionInSchema("Status", task.status))
-        }
+        properties["Status"] = PageProperty(select = findOptionInSchema("Status", task.status.name))
+
         if (task.estStarted != null || task.deadline != null) {
             if (task.estStarted == null) {
                 task.estStarted = task.deadline
