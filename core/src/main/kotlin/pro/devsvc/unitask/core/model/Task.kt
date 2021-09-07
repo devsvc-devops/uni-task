@@ -71,7 +71,7 @@ enum class TaskPriority(name: String) {
 
     companion object {
         fun getByName(name: String): TaskPriority {
-            return values().first { it.name == name}
+            return values().first { it.name == name }
         }
         fun getById(id: Int): TaskPriority {
             return values()[id]

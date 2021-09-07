@@ -42,12 +42,10 @@ class NitriteStore : TaskStore {
         val existing = find(task.title)
         if (existing != null) {
             val existingLastEditTime = existing.lastEditTime
-            if (existingLastEditTime != null && task.lastEditTime != null && existingLastEditTime.isBefore(task.lastEditTime)) {
-                // when updating, need to merge custom properties manually, or else the old custom properties will disappear
-                val existingCustomProperties = existing.customProperties
-                customDoc.putAll(existingCustomProperties)
-                taskCollection.update(eq("title", task.title), document)
-            }
+            // when updating, need to merge custom properties manually, or else the old custom properties will disappear
+            val existingCustomProperties = existing.customProperties
+            customDoc.putAll(existingCustomProperties)
+            taskCollection.update(eq("title", task.title), document)
         } else {
             taskCollection.insert(document)
         }

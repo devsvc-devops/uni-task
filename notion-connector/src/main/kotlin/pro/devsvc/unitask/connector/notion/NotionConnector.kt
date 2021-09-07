@@ -1,5 +1,6 @@
 package pro.devsvc.unitask.connector.notion
 
+import kotlinx.coroutines.selects.select
 import notion.api.v1.NotionClient
 import notion.api.v1.http.OkHttp4Client
 import notion.api.v1.logging.Slf4jLogger
@@ -97,6 +98,10 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
             task.deadline = parseDateTime(page.properties["Due Date"]?.date?.end)
             task.lastEditTime = parseDateTime(page.lastEditedTime)
             task.projectName = page.properties["ProjectName"]?.select?.name
+            if (task.projectName.isNullOrBlank() || task.projectName == "任务池" || task.projectName == "智能报告长期任务集") {
+                return
+            }
+
             val typeName = page.properties["Type"]?.select?.name
             if (typeName != null && typeName.isNotBlank()) {
                 task.type = TaskType.valueOf(typeName.toUpperCase())
@@ -108,6 +113,7 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
     private fun syncToNotion(store: TaskStore) {
         for (task in store.list()) {
             if (task.title != null) {
+                log.info("sync task $task to notion...")
                 val notionId = task.customProperties["notion_id"]
                 val properties = taskToNotionPageProperties(task)
                 if (properties.isEmpty()) {
@@ -129,14 +135,16 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                             PageProperty.PageReference(projectInNotionPage.id)
                         ))
                     }
-
                 }
 
                 if (notionId != null) {
                     if (properties.isNotEmpty()) {
                         val page = client.retrievePage(notionId)
+                        if (page.archived == true) {
+                            log.warn("page $page is deleted by user...")
+                        }
                         val notionLastEditTime = parseDateTime(page.lastEditedTime)
-                        if (notionLastEditTime!!.isBefore(task.lastEditTime)) {
+                        if (true /** for dev only, disable ldt check */|| notionLastEditTime!!.isBefore(task.lastEditTime)) {
                             val result = client.updatePageProperties(notionId, properties)
                             log.debug("update result $result")
                         } else {
@@ -144,10 +152,12 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                         }
                     }
                 } else {
-                    client.createPage(CreatePageRequest(
+                    val page = client.createPage(CreatePageRequest(
                         PageParent.database(databaseId),
                         properties
                     ))
+                    task.customProperties["notion_id"] = page.id
+                    store.store(task)
                 }
             }
         }
@@ -160,7 +170,6 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                 RichText(text = Text(task.title))
             ))
         }
-        properties["Status"] = PageProperty(select = findOptionInSchema("Status", task.status.name))
 
         if (task.estStarted != null || task.deadline != null) {
             if (task.estStarted == null) {
@@ -171,16 +180,35 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                 end = task.deadline?.format(NOTION_FMT),
             ))
         }
-        if (task.assignedUserName.isNotBlank()) {
-            properties["AssignedTo"] = PageProperty(richText = listOf(RichText(text = Text(task.assignedUserName))))
-        }
+        safeCreatePageProperty(properties,"Status", task.status.name)
+        safeCreatePageProperty(properties,"AssignedTo", task.assignedUserName)
+        safeCreatePageProperty(properties,"ProjectName", task.projectName)
+        safeCreatePageProperty(properties,"ProductName", task.productName)
+        safeCreatePageProperty(properties,"Type", task.type.name)
 
-        if (task.projectName != null) {
-            val option = findOptionInSchema("ProjectName", task.projectName!!)
-            option?.let { properties["ProjectName"] = PageProperty(select = option) }
-        }
-        properties["Type"] = PageProperty(select = findOptionInSchema("Type", task.type.name))
         return properties
+    }
+
+    private fun safeCreatePageProperty(properties: MutableMap<String, PageProperty>, name: String, value: String?) {
+        if (!value.isNullOrBlank()) {
+            val propertyDef = schema[name]
+            var pageProperty: PageProperty? = null
+            if (propertyDef != null) {
+                if (propertyDef.select != null) {
+                    val option = findOptionInSchema(name, value)
+                    if (option != null) {
+                        pageProperty = PageProperty(select = option)
+                    } else {
+                        pageProperty = PageProperty(select = DatabaseProperty.Select.Option(name = value))
+                    }
+                } else if (propertyDef.richText != null) {
+                    pageProperty = PageProperty(richText = listOf(RichText(text = Text(value))))
+                }
+            }
+            if (pageProperty != null) {
+                properties[name] = pageProperty
+            }
+        }
     }
 
     private fun findOptionInSchema(propertyName: String, optionValue: String): DatabaseProperty.Select.Option? {

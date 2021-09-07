@@ -1,5 +1,7 @@
 package pro.devsvc.unitask.connector.zentao
 
+import cn.hutool.core.map.BiMap
+import org.apache.commons.collections.BidiMap
 import pro.devsvc.unitask.connector.Connector
 import pro.devsvc.unitask.core.model.TaskPriority
 import pro.devsvc.unitask.core.model.TaskStatus
@@ -7,6 +9,7 @@ import pro.devsvc.unitask.core.model.TaskType
 import pro.devsvc.unitask.store.nitrite.TaskStore
 import pro.devsvc.zentao.sdk.ZTask
 import pro.devsvc.zentao.sdk.ZentaoSDK
+import pro.devsvc.zentao.sdk.quickCreateStoryAndTask
 import pro.devsvc.zentao.sdk.saveTask
 import pro.devsvc.zentao.sdk.usermodel.Project
 import pro.devsvc.zentao.sdk.usermodel.Task
@@ -21,6 +24,9 @@ class ZentaoConnector(
 ) : Connector {
 
     val sdk: ZentaoSDK = ZentaoSDK(baseUrl)
+    val defaultProductId = 18
+    val productMap = BiMap(mutableMapOf<Int, String>())
+    val projectMap = BiMap(mutableMapOf<Int, String>())
 
     init {
         sdk.login(username, password)
@@ -34,6 +40,7 @@ class ZentaoConnector(
     private fun syncToStore(store: TaskStore) {
         val products = sdk.getAllProducts()
         for (product in products) {
+            productMap[product.id] = product.name
             sdk.getProjectsOfProduct(product.id)?.forEach {
                 if (it.begin!!.isBefore(LocalDateTime.of(2020, 12, 20, 0, 0, 0)) ||
                     it.status == "closed" ||
@@ -41,6 +48,7 @@ class ZentaoConnector(
                 ) {
                     return@forEach
                 }
+                projectMap[it.id] = it.name
 
                 val uTask = zProjectToUniTask(it)
                 store.store(uTask)
@@ -56,6 +64,8 @@ class ZentaoConnector(
 
     private fun syncFromStore(store: TaskStore) {
         for (task in store.list()) {
+            // if product or project is null, dont sync to zentao
+            // because in that case zentao may be mass.
             val zId = task.customProperties["zId"]
             if (zId != null) {
                 val id = zId.substringAfterLast("-").toInt()
@@ -67,13 +77,6 @@ class ZentaoConnector(
                         if (storeLastEditTime != null && zentaoLastEditTime != null &&
                             storeLastEditTime.isAfter(zentaoLastEditTime)) {
                             uniTaskToZTask(task, zTask)
-                            val project = task.projectName?.let { store.find(it) }
-                            if (project != null) {
-                                val projectId = project.customProperties["zId"]?.substringAfterLast("-")?.toInt()
-                                if (projectId != null) {
-                                    zTask.project = projectId
-                                }
-                            }
                             sdk.saveTask(zTask)
                         }
                     }
@@ -84,14 +87,11 @@ class ZentaoConnector(
                     TaskType.TASK -> {
                         val zTask = Task(sdk, -1, task.title)
                         uniTaskToZTask(task, zTask)
-                        val project = task.projectName?.let { store.find(it) }
-                        if (project != null) {
-                            val projectId = project.customProperties["zId"]?.substringAfterLast("-")?.toInt()
-                            if (projectId != null) {
-                                zTask.project = projectId
-                            }
+                        val result = sdk.quickCreateStoryAndTask(zTask, true)
+                        if (result.taskId > 0) {
+                            task.customProperties["zId"] = "zTask-${result.taskId}"
+                            store.store(task)
                         }
-                        sdk.createTask(zTask)
                     }
                     else -> {}
                 }
@@ -107,6 +107,7 @@ class ZentaoConnector(
         // uTask.planName =
         // uTask.projectId = project.id.toString()
         uTask.projectName = project.name
+        // uTask.productName = productMap[project.products.firstOrNull()]
         // uTask.productId = project.products.joinToString()
 
         uTask.customProperties["zId"] = "zProject-${project.id}"
@@ -130,8 +131,10 @@ class ZentaoConnector(
         // uTask.planId = sdk.getProject(zTask.project)?.plans?.joinToString()
         // uTask.projectId = zTask.project?.toString()
         // uTask.productId = zTask.product?.toString()
+
         val project = sdk.getProject(zTask.project)
         uTask.projectName = project?.name
+        uTask.productName = zTask.ztProduct?.name
         uTask.assignedUserId = zTask.assignedTo
         uTask.status = TaskStatus.getByName(zTask.status)
         uTask.priority = TaskPriority.getById(zTask.pri - 1)
@@ -144,9 +147,15 @@ class ZentaoConnector(
         zTask.name = uTask.title
         zTask.estStarted = uTask.estStarted?.toLocalDateTime()
         zTask.deadline = uTask.deadline?.toLocalDateTime()
-        // zTask.project =
         zTask.status = uTask.status.name
         zTask.assignedToRealName = uTask.assignedUserName
         zTask.pri = TaskPriority.values().indexOf(uTask.priority) + 1
+
+        if (uTask.productName != null) {
+            zTask.product = productMap.getKey(uTask.productName)
+        }
+        if (uTask.projectName != null) {
+            zTask.project = projectMap.getKey(uTask.projectName)
+        }
     }
 }
