@@ -18,7 +18,7 @@ data class Task(
     var status: TaskStatus = TaskStatus.WAIT
     /** the user id */
     var assignedUserId: String = ""
-    var assignedUserName: String = ""
+    var assignedUserName: String? = null
     @Serializable(with = KZonedDateTimeSerializer::class)
     var estStarted: ZonedDateTime? = null
     @Serializable(with = KZonedDateTimeSerializer::class)
@@ -38,6 +38,7 @@ data class Task(
     var productName: String? = null
 
     var customProperties = mutableMapOf<String, String?>()
+    var from: String? = null
 }
 
 enum class TaskType(name: String) {
@@ -63,15 +64,15 @@ enum class TaskStatus(val code: String, name: String, val color: String) {
     }
 }
 
-enum class TaskPriority(name: String) {
+enum class TaskPriority(val cname: String) {
     URGENT("紧急"),
     IMPORTANT("重要"),
     NORMAL("一般"),
     UNIMPORTANT("不重要");
 
     companion object {
-        fun getByName(name: String): TaskPriority {
-            return values().first { it.name == name }
+        fun getByCName(cname: String): TaskPriority {
+            return values().first { it.cname == cname }
         }
         fun getById(id: Int): TaskPriority {
             return values()[id]

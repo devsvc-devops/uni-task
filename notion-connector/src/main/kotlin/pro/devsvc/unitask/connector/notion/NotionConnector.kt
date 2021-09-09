@@ -2,6 +2,7 @@ package pro.devsvc.unitask.connector.notion
 
 import kotlinx.coroutines.selects.select
 import notion.api.v1.NotionClient
+import notion.api.v1.exception.NotionAPIError
 import notion.api.v1.http.OkHttp4Client
 import notion.api.v1.logging.Slf4jLogger
 import notion.api.v1.model.databases.DatabaseProperty
@@ -19,6 +20,7 @@ import pro.devsvc.unitask.connector.Connector
 import pro.devsvc.unitask.core.model.Task
 import pro.devsvc.unitask.core.model.TaskStatus
 import pro.devsvc.unitask.core.model.TaskType
+import pro.devsvc.unitask.store.nitrite.DelegateTaskStore
 import pro.devsvc.unitask.store.nitrite.TaskStore
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -63,6 +65,7 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
     private val schema = mutableMapOf<String, DatabaseProperty>()
 
     override fun start(store: TaskStore) {
+        // val delegateStore = DelegateTaskStore(store, "notion")
         for (db in listDatabase().results) {
             if (db.title[0].plainText != database) {
                 continue
@@ -81,33 +84,32 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
     private fun syncToStore(page: Page, store: TaskStore) {
         val title = page.properties["Name"]?.title?.firstOrNull()?.plainText
         if (title != null) {
-            // handle if renamed
-            val existing = store.find(mapOf("customProperties.notion_id" to page.id))
-            if (existing != null) {
-                log.error("")
-            }
-
             val task = Task(title)
-            task.customProperties["notion_id"] = page.id
-            val pageStatus = page.properties["Status"]?.select?.name
-            if (pageStatus != null) {
-                task.status = TaskStatus.getByName(pageStatus)
-            }
-            task.createTime = parseDateTime(page.createdTime)
-            task.estStarted = parseDateTime(page.properties["Due Date"]?.date?.start)
-            task.deadline = parseDateTime(page.properties["Due Date"]?.date?.end)
-            task.lastEditTime = parseDateTime(page.lastEditedTime)
-            task.projectName = page.properties["ProjectName"]?.select?.name
-            if (task.projectName.isNullOrBlank() || task.projectName == "任务池" || task.projectName == "智能报告长期任务集") {
-                return
-            }
-
-            val typeName = page.properties["Type"]?.select?.name
-            if (typeName != null && typeName.isNotBlank()) {
-                task.type = TaskType.valueOf(typeName.toUpperCase())
-            }
+            pageToUniTask(page, task)
             store.store(task)
         }
+    }
+
+    private fun pageToUniTask(page: Page, task: Task) {
+        val typeName = page.properties["Type"]?.select?.name
+        if (typeName != null && typeName.isNotBlank()) {
+            task.type = TaskType.valueOf(typeName.toUpperCase())
+        }
+
+        task.customProperties["notion_id"] = page.id
+        val pageStatus = page.properties["Status"]?.select?.name
+        if (pageStatus != null) {
+            task.status = TaskStatus.getByName(pageStatus)
+        }
+        task.createTime = parseDateTime(page.createdTime)
+        task.estStarted = parseDateTime(page.properties["Due Date"]?.date?.start)
+        task.deadline = parseDateTime(page.properties["Due Date"]?.date?.end)
+        task.assignedUserName = page.properties["AssignedTo"]?.select?.name
+        task.lastEditTime = parseDateTime(page.lastEditedTime)
+        // task.customProperties["last_sync_to_notion"] = ZonedDateTime.now().format(formatter)
+        task.projectName = page.properties["ProjectName"]?.select?.name
+        task.productName = page.properties["ProductName"]?.select?.name
+        task.from = "Notion"
     }
 
     private fun syncToNotion(store: TaskStore) {
@@ -120,33 +122,34 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                     continue
                 }
 
-                if (task.type == TaskType.TASK && task.projectName != null) {
-                    // if project is already in notion, construct the relation
-                    // if not, have to do this in next sync. TODO: better solution?
-                    val projectInNotion = client.queryDatabase(databaseId, NCompoundFilter(
-                        and = listOf(
-                            NPropertyFilter("Name", title = TextFilter(task.projectName)),
-                            NPropertyFilter("Type", select = SelectFilter("Project"))
-                        )
-                    ))
-                    if (projectInNotion.results.isNotEmpty()) {
-                        val projectInNotionPage = projectInNotion.results[0]
-                        properties["Project"] = PageProperty(relation = listOf(
-                            PageProperty.PageReference(projectInNotionPage.id)
-                        ))
-                    }
-                }
-
                 if (notionId != null) {
+                    // TODO: save a last_sync_to_notion timestamp, and if last_edit_time is not later than last sync time, dont do update
                     if (properties.isNotEmpty()) {
                         val page = client.retrievePage(notionId)
                         if (page.archived == true) {
                             log.warn("page $page is deleted by user...")
                         }
                         val notionLastEditTime = parseDateTime(page.lastEditedTime)
+                        val lastEditTime = task.lastEditTime
+                        // val lastSyncTime = parseDateTime(task.customProperties["last_sync_to_notion"])
+                        // if no edit since last sync, don't sync again
+                        // if (lastEditTime?.isBefore(lastSyncTime) == true) {
+                        //     continue
+                        // }
                         if (true /** for dev only, disable ldt check */|| notionLastEditTime!!.isBefore(task.lastEditTime)) {
-                            val result = client.updatePageProperties(notionId, properties)
-                            log.debug("update result $result")
+                            try {
+                                val result = client.updatePageProperties(notionId, properties)
+                                log.debug("update result $result")
+                                task.customProperties["last_sync_to_notion"] = ZonedDateTime.now().format(formatter)
+                                store.store(task)
+                            } catch (e: NotionAPIError) {
+                                if (e.message.startsWith("Could not find page with ID")) {
+                                    log.warn("deleting task $task")
+                                    store.delete(task)
+                                }
+                            } catch (e: Throwable) {
+                                log.error("error update task: $task", e)
+                            }
                         } else {
                             log.debug("task ${task.title} last edit time is before or equals to notion's last edit time, skip...")
                         }
@@ -156,6 +159,7 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                         PageParent.database(databaseId),
                         properties
                     ))
+                    task.customProperties["last_sync_to_notion"] = ZonedDateTime.now().format(formatter)
                     task.customProperties["notion_id"] = page.id
                     store.store(task)
                 }
@@ -185,7 +189,24 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
         safeCreatePageProperty(properties,"ProjectName", task.projectName)
         safeCreatePageProperty(properties,"ProductName", task.productName)
         safeCreatePageProperty(properties,"Type", task.type.name)
+        safeCreatePageProperty(properties, "Priority", task.priority.cname)
 
+        if (task.type == TaskType.TASK && task.projectName != null) {
+            // if project is already in notion, construct the relation
+            // if not, have to do this in next sync. TODO: better solution?
+            val projectInNotion = client.queryDatabase(databaseId, NCompoundFilter(
+                and = listOf(
+                    NPropertyFilter("Name", title = TextFilter(task.projectName)),
+                    NPropertyFilter("Type", select = SelectFilter("Project"))
+                )
+            ))
+            if (projectInNotion.results.isNotEmpty()) {
+                val projectInNotionPage = projectInNotion.results[0]
+                properties["Project"] = PageProperty(relation = listOf(
+                    PageProperty.PageReference(projectInNotionPage.id)
+                ))
+            }
+        }
         return properties
     }
 

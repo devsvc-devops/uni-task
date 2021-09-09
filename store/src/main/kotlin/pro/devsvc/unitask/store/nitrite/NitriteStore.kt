@@ -45,6 +45,7 @@ class NitriteStore : TaskStore {
             // when updating, need to merge custom properties manually, or else the old custom properties will disappear
             val existingCustomProperties = existing.customProperties
             customDoc.putAll(existingCustomProperties)
+            // document.remo
             taskCollection.update(eq("title", task.title), document)
         } else {
             taskCollection.insert(document)
@@ -74,6 +75,10 @@ class NitriteStore : TaskStore {
         }.toTypedArray()
         val doc = taskCollection.find(and(*filters)).firstOrDefault()
         return docToTask(doc)
+    }
+
+    override fun delete(task: Task) {
+        taskCollection.remove(eq("title", task.title))
     }
 
     fun docToTask(doc: Document?): Task? {
@@ -128,5 +133,23 @@ class NitriteStore : TaskStore {
             }
         }
         return map
+    }
+
+    private fun taskToMap(task: Task) {
+        val map = mutableMapOf<String, Any>()
+        map["title"] = task.title
+        map["type"] = task.type.name
+        map["desc"] = task.desc
+        map["assignedUserId"] = task.assignedUserId
+        if (task.assignedUserName != null) {
+            map["assignedUserName"] = task.assignedUserName!!
+        }
+        if (task.estStarted != null) {
+            map["estStarted"] = task.estStarted!!.toString()
+        }
+        if (task.deadline != null) {
+            map["deadline"] = task.deadline!!
+        }
+        // if (task.esti)
     }
 }

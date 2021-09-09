@@ -66,6 +66,9 @@ class ZentaoConnector(
         for (task in store.list()) {
             // if product or project is null, dont sync to zentao
             // because in that case zentao may be mass.
+            if (task.projectName.isNullOrBlank() || task.projectName == "任务池" || task.projectName == "智能报告长期任务集") {
+                continue
+            }
             val zId = task.customProperties["zId"]
             if (zId != null) {
                 val id = zId.substringAfterLast("-").toInt()
@@ -135,11 +138,18 @@ class ZentaoConnector(
         val project = sdk.getProject(zTask.project)
         uTask.projectName = project?.name
         uTask.productName = zTask.ztProduct?.name
-        uTask.assignedUserId = zTask.assignedTo
+        if (!zTask.assignedTo.isNullOrBlank()) {
+            uTask.assignedUserId = zTask.assignedTo
+        }
+        if (!zTask.assignedToRealName.isNullOrBlank()) {
+            uTask.assignedUserName = zTask.assignedToRealName
+        }
         uTask.status = TaskStatus.getByName(zTask.status)
         uTask.priority = TaskPriority.getById(zTask.pri - 1)
         uTask.lastEditTime = zTask.lastEditedDate?.atZone(ZoneId.systemDefault())
         uTask.customProperties["zId"] = "zTask-${zTask.id}"
+
+        uTask.from = "禅道"
         return uTask
     }
 
@@ -148,7 +158,7 @@ class ZentaoConnector(
         zTask.estStarted = uTask.estStarted?.toLocalDateTime()
         zTask.deadline = uTask.deadline?.toLocalDateTime()
         zTask.status = uTask.status.name
-        zTask.assignedToRealName = uTask.assignedUserName
+        zTask.assignedToRealName = uTask.assignedUserName ?: ""
         zTask.pri = TaskPriority.values().indexOf(uTask.priority) + 1
 
         if (uTask.productName != null) {
