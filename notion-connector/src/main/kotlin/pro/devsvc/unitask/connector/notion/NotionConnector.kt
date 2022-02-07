@@ -125,22 +125,22 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                 if (notionId != null) {
                     // TODO: save a last_sync_to_notion timestamp, and if last_edit_time is not later than last sync time, dont do update
                     if (properties.isNotEmpty()) {
-                        val page = client.retrievePage(notionId)
-                        if (page.archived == true) {
-                            log.warn("page $page is deleted by user...")
-                        }
-                        val notionLastEditTime = parseDateTime(page.lastEditedTime)
+                        // val page = client.retrievePage(notionId)
+                        // if (page.archived == true) {
+                        //     log.warn("page $page is deleted by user...")
+                        // }
+                        // val notionLastEditTime = parseDateTime(page.lastEditedTime)
                         val lastEditTime = task.lastEditTime
                         // val lastSyncTime = parseDateTime(task.customProperties["last_sync_to_notion"])
                         // if no edit since last sync, don't sync again
                         // if (lastEditTime?.isBefore(lastSyncTime) == true) {
                         //     continue
                         // }
-                        if (true /** for dev only, disable ldt check */|| notionLastEditTime!!.isBefore(task.lastEditTime)) {
+                        if (true) {
                             try {
                                 val result = client.updatePageProperties(notionId, properties)
                                 log.debug("update result $result")
-                                task.customProperties["last_sync_to_notion"] = ZonedDateTime.now().format(formatter)
+                                task.customProperties["notion_last_sync_time"] = ZonedDateTime.now().format(formatter)
                                 store.store(task)
                             } catch (e: NotionAPIError) {
                                 if (e.message.startsWith("Could not find page with ID")) {
@@ -159,7 +159,7 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
                         PageParent.database(databaseId),
                         properties
                     ))
-                    task.customProperties["last_sync_to_notion"] = ZonedDateTime.now().format(formatter)
+                    task.customProperties["notion_last_sync_time"] = ZonedDateTime.now().format(formatter)
                     task.customProperties["notion_id"] = page.id
                     store.store(task)
                 }

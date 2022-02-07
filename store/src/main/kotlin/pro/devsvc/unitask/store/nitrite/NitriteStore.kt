@@ -45,7 +45,8 @@ class NitriteStore : TaskStore {
             // when updating, need to merge custom properties manually, or else the old custom properties will disappear
             val existingCustomProperties = existing.customProperties
             customDoc.putAll(existingCustomProperties)
-            // document.remo
+            // task.from is set on create, never change again.
+            document.remove("from")
             taskCollection.update(eq("title", task.title), document)
         } else {
             taskCollection.insert(document)

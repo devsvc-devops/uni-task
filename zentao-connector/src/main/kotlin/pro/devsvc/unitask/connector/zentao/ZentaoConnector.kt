@@ -1,6 +1,7 @@
 package pro.devsvc.unitask.connector.zentao
 
 import cn.hutool.core.map.BiMap
+import kotlinx.datetime.toLocalDateTime
 import org.apache.commons.collections.BidiMap
 import pro.devsvc.unitask.connector.Connector
 import pro.devsvc.unitask.core.model.TaskPriority
@@ -15,6 +16,9 @@ import pro.devsvc.zentao.sdk.usermodel.Project
 import pro.devsvc.zentao.sdk.usermodel.Task
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.logging.SimpleFormatter
 import pro.devsvc.unitask.core.model.Task as UniTask
 
 class ZentaoConnector(
@@ -69,37 +73,34 @@ class ZentaoConnector(
             if (task.projectName.isNullOrBlank() || task.projectName == "任务池" || task.projectName == "智能报告长期任务集") {
                 continue
             }
-            val zId = task.customProperties["zId"]
+            if (task.type != TaskType.TASK) {
+                continue
+            }
+            val zId = task.customProperties["zId"]?.substringAfterLast("-")?.toInt()
+            val lastSyncTimeStr = task.customProperties["zentao_last_sync_time"]
+            val lastSyncTime = if (!lastSyncTimeStr.isNullOrBlank()) ZonedDateTime.parse(lastSyncTimeStr, DateTimeFormatter.ISO_DATE_TIME) else ZonedDateTime.now()
             if (zId != null) {
-                val id = zId.substringAfterLast("-").toInt()
-                when (task.type) {
-                    TaskType.TASK -> {
-                        val zTask = sdk.getTask(id)
-                        val storeLastEditTime = task.lastEditTime
-                        val zentaoLastEditTime = zTask?.lastEditedDate?.atZone(ZoneId.systemDefault())
-                        if (storeLastEditTime != null && zentaoLastEditTime != null &&
-                            storeLastEditTime.isAfter(zentaoLastEditTime)) {
-                            uniTaskToZTask(task, zTask)
-                            sdk.saveTask(zTask)
-                        }
-                    }
-                    else -> {}
+                val zTask = sdk.getTask(zId)!!
+                val storeLastEditTime = task.lastEditTime
+                if (storeLastEditTime != null && storeLastEditTime.isAfter(lastSyncTime)) {
+                    uniTaskToZTask(task, zTask)
+                    sdk.saveTask(zTask)
                 }
             } else {
-                when (task.type) {
-                    TaskType.TASK -> {
-                        val zTask = Task(sdk, -1, task.title)
-                        uniTaskToZTask(task, zTask)
-                        val result = sdk.quickCreateStoryAndTask(zTask, true)
-                        if (result.taskId > 0) {
-                            task.customProperties["zId"] = "zTask-${result.taskId}"
-                            store.store(task)
-                        }
-                    }
-                    else -> {}
+                // becuase we first sync from zt to store, so no need to check exists now; if zid is null, treat as not exist.
+                val zTask = Task(sdk, -1, task.title)
+                uniTaskToZTask(task, zTask)
+                val result = sdk.quickCreateStoryAndTask(zTask, true)
+                if (result.taskId > 0) {
+                    task.customProperties["zId"] = "zTask-${result.taskId}"
+                    store.store(task)
                 }
             }
         }
+    }
+
+    private fun syncTaskToZentao(task: pro.devsvc.unitask.core.model.Task) {
+
     }
 
     private fun zProjectToUniTask(project: Project): UniTask {
