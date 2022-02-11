@@ -5,6 +5,7 @@ import notion.api.v1.exception.NotionAPIError
 import notion.api.v1.http.OkHttp4Client
 import notion.api.v1.logging.Slf4jLogger
 import notion.api.v1.model.blocks.BlockType
+import notion.api.v1.model.blocks.ChildDatabaseBlock
 import notion.api.v1.model.databases.*
 import notion.api.v1.model.databases.query.filter.condition.SelectFilter
 import notion.api.v1.model.databases.query.filter.condition.TextFilter
@@ -29,6 +30,10 @@ import java.time.format.DateTimeFormatterBuilder
 import java.time.temporal.ChronoField
 
 const val NOTION_CONNECTOR_ID = "notion"
+const val DEFAULT_PAGE_TITLE = "UniTask"
+const val TASK_DATABASE_TITLE = "Tasks"
+const val PROJECT_DATABSE_TITLE = "Projects"
+const val PRODUCT_DATABSE_TITLE = "Products"
 
 class NotionConnector(
     token: String = System.getProperty("NOTION_TOKEN"),
@@ -85,8 +90,9 @@ class NotionConnector(
     private fun createDatabase() {
         val children = client.retrieveBlockChildren(pageId)
         for (child in children.results) {
-            if (child.type == BlockType.ChildDatabase) {
-
+            if (child.type == BlockType.ChildDatabase && child.asChildDatabase().childDatabase.title == "UniTask") {
+                val databaseBlock = child as ChildDatabaseBlock
+                databaseBlock.childDatabase.title ==
             }
         }
 
