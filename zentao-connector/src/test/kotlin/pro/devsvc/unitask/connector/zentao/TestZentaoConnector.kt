@@ -1,7 +1,7 @@
 package pro.devsvc.unitask.connector.zentao
 
 import org.junit.Test
-import pro.devsvc.unitask.store.nitrite.NitriteStore
+import pro.devsvc.unitask.core.store.NitriteStore
 
 class TestZentaoConnector {
 
@@ -15,6 +15,6 @@ class TestZentaoConnector {
             System.getProperty("ztPwd")
         )
 
-        connector.start(store)
+        connector.start()
     }
 }

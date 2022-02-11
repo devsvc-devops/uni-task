@@ -1,12 +1,11 @@
 package pro.devsvc.unitask.connector.notion
 
-import kotlinx.coroutines.selects.select
 import notion.api.v1.NotionClient
 import notion.api.v1.exception.NotionAPIError
 import notion.api.v1.http.OkHttp4Client
 import notion.api.v1.logging.Slf4jLogger
-import notion.api.v1.model.databases.DatabaseProperty
-import notion.api.v1.model.databases.Databases
+import notion.api.v1.model.blocks.BlockType
+import notion.api.v1.model.databases.*
 import notion.api.v1.model.databases.query.filter.condition.SelectFilter
 import notion.api.v1.model.databases.query.filter.condition.TextFilter
 import notion.api.v1.model.pages.Page
@@ -14,23 +13,26 @@ import notion.api.v1.model.pages.PageParent
 import notion.api.v1.model.pages.PageProperty
 import notion.api.v1.model.pages.PageProperty.RichText
 import notion.api.v1.model.pages.PageProperty.RichText.Text
+import notion.api.v1.request.databases.CreateDatabaseRequest
 import notion.api.v1.request.pages.CreatePageRequest
 import org.slf4j.LoggerFactory
-import pro.devsvc.unitask.connector.Connector
+import pro.devsvc.unitask.connector.notion.utils.titlePageProperty
+import pro.devsvc.unitask.core.connector.Connector
 import pro.devsvc.unitask.core.model.Task
 import pro.devsvc.unitask.core.model.TaskStatus
 import pro.devsvc.unitask.core.model.TaskType
-import pro.devsvc.unitask.store.nitrite.DelegateTaskStore
-import pro.devsvc.unitask.store.nitrite.TaskStore
+import pro.devsvc.unitask.core.store.TaskStoreManager
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
 import java.time.temporal.ChronoField
 
+const val NOTION_CONNECTOR_ID = "notion"
 
-class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
-    private val database: String) : Connector {
+class NotionConnector(
+    token: String = System.getProperty("NOTION_TOKEN"),
+    private val database: String = "UniTask") : Connector {
 
     private val log = LoggerFactory.getLogger(javaClass)
     private var formatter: DateTimeFormatter
@@ -61,11 +63,67 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
         logger = Slf4jLogger(),
     )
 
+    lateinit var pageId: String
     private var databaseId = ""
-    private val schema = mutableMapOf<String, DatabaseProperty>()
+    private var taskDatabaseId = ""
 
-    override fun start(store: TaskStore) {
-        // val delegateStore = DelegateTaskStore(store, "notion")
+    private val schema = mutableMapOf<String, DatabaseProperty>()
+    private val store = TaskStoreManager.store
+    override val id: String
+        get() = NOTION_CONNECTOR_ID
+
+
+    override fun start() {
+        val pages = client.search("UniTask").results
+        if (pages.isNotEmpty()) {
+            pageId = pages[0].id
+        } else return
+
+        createDatabase()
+    }
+
+    private fun createDatabase() {
+        val children = client.retrieveBlockChildren(pageId)
+        for (child in children.results) {
+            if (child.type == BlockType.ChildDatabase) {
+
+            }
+        }
+
+        client.createDatabase(
+            CreateDatabaseRequest(
+                parent = DatabaseParent.page(pageId),
+                title = listOf(DatabaseProperty.RichText(text = DatabaseProperty.RichText.Text(content = "UniTask"))),
+                properties = mapOf(
+                    "Title" to TitlePropertySchema(),
+                    // "AssignedTo" to SelectPropertySchema(),
+                    "Date" to DatePropertySchema(),
+                    //"Status" to SelectPropertySchema(),
+                    //"Type" to SelectPropertySchema(),
+                )
+            )
+        )
+
+    }
+
+    private fun createTaskDatabase() {
+
+    }
+
+    private fun createProjectDatabase() {
+
+    }
+
+    private fun createPersonDatabase() {
+
+    }
+
+    private fun createProductDatabase() {
+
+    }
+
+    override fun listTasks(): List<Task> {
+        val result = mutableListOf<Task>()
         for (db in listDatabase().results) {
             if (db.title[0].plainText != database) {
                 continue
@@ -75,17 +133,63 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
 
             val pages = client.queryDatabase(db.id).results
             for (page in pages) {
-                syncToStore(page, store)
+                val title = page.properties["Name"]?.title?.firstOrNull()?.plainText
+                if (title != null) {
+                    val task = Task(title)
+                    pageToUniTask(page, task)
+                    result.add(task)
+                }
             }
         }
-        syncToNotion(store)
+        return result
     }
 
-    private fun syncToStore(page: Page, store: TaskStore) {
-        val title = page.properties["Name"]?.title?.firstOrNull()?.plainText
-        if (title != null) {
-            val task = Task(title)
-            pageToUniTask(page, task)
+    override fun update(task: Task) {
+        log.info("sync task $task to notion...")
+        val notionId = task.getIdInConnector(NOTION_CONNECTOR_ID)
+        val properties = taskToNotionPageProperties(task)
+        if (properties.isEmpty()) {
+            return
+        }
+
+        if (notionId != null) {
+            if (properties.isNotEmpty()) {
+                // val page = client.retrievePage(notionId)
+                // if (page.archived == true) {
+                //     log.warn("page $page is deleted by user...")
+                // }
+                // val notionLastEditTime = parseDateTime(page.lastEditedTime)
+                val lastEditTime = task.lastEditTime
+                // val lastSyncTime = parseDateTime(task.customProperties["last_sync_to_notion"])
+                // if no edit since last sync, don't sync again
+                // if (lastEditTime?.isBefore(lastSyncTime) == true) {
+                //     continue
+                // }
+                if (true) {
+                    try {
+                        val result = client.updatePageProperties(notionId, properties)
+                        log.debug("update result $result")
+                        task.customProperties["notion_last_sync_time"] = ZonedDateTime.now().format(formatter)
+                        store.store(task)
+                    } catch (e: NotionAPIError) {
+                        if (e.message.startsWith("Could not find page with ID")) {
+                            log.warn("deleting task $task")
+                            store.delete(task)
+                        }
+                    } catch (e: Throwable) {
+                        log.error("error update task: $task", e)
+                    }
+                } else {
+                    log.debug("task ${task.title} last edit time is before or equals to notion's last edit time, skip...")
+                }
+            }
+        } else {
+            val page = client.createPage(CreatePageRequest(
+                PageParent.database(databaseId),
+                properties
+            ))
+            task.customProperties["notion_last_sync_time"] = ZonedDateTime.now().format(formatter)
+            task.customProperties["notion_id"] = page.id
             store.store(task)
         }
     }
@@ -110,61 +214,6 @@ class NotionConnector(token: String = System.getProperty("NOTION_TOKEN"),
         task.projectName = page.properties["ProjectName"]?.select?.name
         task.productName = page.properties["ProductName"]?.select?.name
         task.from = "Notion"
-    }
-
-    private fun syncToNotion(store: TaskStore) {
-        for (task in store.list()) {
-            if (task.title != null) {
-                log.info("sync task $task to notion...")
-                val notionId = task.customProperties["notion_id"]
-                val properties = taskToNotionPageProperties(task)
-                if (properties.isEmpty()) {
-                    continue
-                }
-
-                if (notionId != null) {
-                    // TODO: save a last_sync_to_notion timestamp, and if last_edit_time is not later than last sync time, dont do update
-                    if (properties.isNotEmpty()) {
-                        // val page = client.retrievePage(notionId)
-                        // if (page.archived == true) {
-                        //     log.warn("page $page is deleted by user...")
-                        // }
-                        // val notionLastEditTime = parseDateTime(page.lastEditedTime)
-                        val lastEditTime = task.lastEditTime
-                        // val lastSyncTime = parseDateTime(task.customProperties["last_sync_to_notion"])
-                        // if no edit since last sync, don't sync again
-                        // if (lastEditTime?.isBefore(lastSyncTime) == true) {
-                        //     continue
-                        // }
-                        if (true) {
-                            try {
-                                val result = client.updatePageProperties(notionId, properties)
-                                log.debug("update result $result")
-                                task.customProperties["notion_last_sync_time"] = ZonedDateTime.now().format(formatter)
-                                store.store(task)
-                            } catch (e: NotionAPIError) {
-                                if (e.message.startsWith("Could not find page with ID")) {
-                                    log.warn("deleting task $task")
-                                    store.delete(task)
-                                }
-                            } catch (e: Throwable) {
-                                log.error("error update task: $task", e)
-                            }
-                        } else {
-                            log.debug("task ${task.title} last edit time is before or equals to notion's last edit time, skip...")
-                        }
-                    }
-                } else {
-                    val page = client.createPage(CreatePageRequest(
-                        PageParent.database(databaseId),
-                        properties
-                    ))
-                    task.customProperties["notion_last_sync_time"] = ZonedDateTime.now().format(formatter)
-                    task.customProperties["notion_id"] = page.id
-                    store.store(task)
-                }
-            }
-        }
     }
 
     private fun taskToNotionPageProperties(task: Task): MutableMap<String, PageProperty> {

@@ -1,4 +1,5 @@
-package pro.devsvc.unitask.store.nitrite
+package pro.devsvc.unitask.core.store
+
 
 import org.dizitart.no2.Document
 import org.dizitart.no2.Nitrite
@@ -7,12 +8,13 @@ import org.dizitart.no2.IndexOptions
 import org.dizitart.no2.IndexType
 import org.dizitart.no2.filters.Filters.*
 import kotlinx.serialization.json.*
+import java.time.ZonedDateTime
 
 class NitriteStore : TaskStore {
 
     private val db = Nitrite.builder()
         .compressed()
-        .filePath("tmp/test.db")
+        .filePath("store/test.db")
         .openOrCreate()
 
     private val taskCollection = db.getCollection("tasks")
@@ -21,11 +23,34 @@ class NitriteStore : TaskStore {
         if (!taskCollection.hasIndex("id")) {
             taskCollection.createIndex("id", IndexOptions.indexOptions(IndexType.Unique))
         }
+        if (!taskCollection.hasIndex("title")) {
+            taskCollection.createIndex("title", IndexOptions.indexOptions(IndexType.Unique))
+        }
     }
 
     override fun store(task: Task, oldTask: Task?) {
+        val existing = find(task.title)
+        if (existing != null) {
+            // val existingLastEditTime = existing.lastEditTime
+            // when updating, need to merge custom properties manually, or else the old custom properties will disappear
+            val existingCustomProperties = existing.customProperties
+
+            task.lastEditTime = ZonedDateTime.now()
+            val document = task2Document(task)
+            val customDoc = (document["customProperties"] ?: Document()) as Document
+            customDoc.putAll(existingCustomProperties)
+            // task.from is set on create, never change again.
+            document.remove("from")
+            taskCollection.update(eq("title", task.title), document)
+        } else {
+            task.lastEditTime = ZonedDateTime.now()
+            val document = task2Document(task)
+            taskCollection.insert(document)
+        }
+    }
+
+    private fun task2Document(task: Task): Document {
         val document = Document()
-        //
         // TODO a more elegantly way to convert task to document
         val jo = Json.encodeToJsonElement(task) as JsonObject
         val customProperties = jo["customProperties"]
@@ -38,19 +63,7 @@ class NitriteStore : TaskStore {
             map["customProperties"] = customDoc
         }
         document.putAll(map)
-
-        val existing = find(task.title)
-        if (existing != null) {
-            val existingLastEditTime = existing.lastEditTime
-            // when updating, need to merge custom properties manually, or else the old custom properties will disappear
-            val existingCustomProperties = existing.customProperties
-            customDoc.putAll(existingCustomProperties)
-            // task.from is set on create, never change again.
-            document.remove("from")
-            taskCollection.update(eq("title", task.title), document)
-        } else {
-            taskCollection.insert(document)
-        }
+        return document
     }
 
     override fun store(tasks: List<Task>) {

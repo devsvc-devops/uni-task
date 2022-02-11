@@ -1,4 +1,4 @@
-package pro.devsvc.unitask.store.nitrite
+package pro.devsvc.unitask.core.store
 
 import pro.devsvc.unitask.core.model.Task
 
@@ -16,4 +16,10 @@ interface TaskStore {
     fun find(map: Map<String, Any?>): Task?
 
     fun delete(task: Task)
+}
+
+object TaskStoreManager {
+
+    val store = NitriteStore()
+
 }

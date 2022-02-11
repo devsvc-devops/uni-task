@@ -5,6 +5,8 @@ import pro.devsvc.unitask.core.serial.KZonedDateTimeSerializer
 import java.time.ZonedDateTime
 import kotlinx.datetime.DateTimePeriod
 import kotlinx.datetime.serializers.DateTimePeriodIso8601Serializer
+import pro.devsvc.unitask.core.connector.Connector
+import java.time.format.DateTimeFormatter
 
 // typealias UniTask = Task
 
@@ -39,6 +41,32 @@ data class Task(
 
     var customProperties = mutableMapOf<String, String?>()
     var from: String? = null
+
+    fun getIdInConnector(connectorId: String): String? {
+        return customProperties["id-$connectorId"]
+    }
+
+    fun setIdInConnector(connectorId: String, id: String) {
+        customProperties["id-$connectorId"] = id
+    }
+
+    fun setLastSyncToConnector(connectorId: String, time: ZonedDateTime) {
+        customProperties["lst-$connectorId"] = time.format(DateTimeFormatter.ISO_DATE_TIME)
+    }
+
+    fun getLastSyncToConnector(connectorId: String): ZonedDateTime? {
+        val timeStr = customProperties["lst-$connectorId"]
+        return if (timeStr == null) null else ZonedDateTime.parse(timeStr)
+    }
+
+    fun setLastSyncFromConnector(connectorId: String, time: ZonedDateTime) {
+        customProperties["lst-from-$connectorId"] = time.format(DateTimeFormatter.ISO_DATE_TIME)
+    }
+
+    fun getLastSyncFromConnector(connectorId: String): ZonedDateTime? {
+        val timeStr = customProperties["lst-from-$connectorId"]
+        return if (timeStr == null) null else ZonedDateTime.parse(timeStr)
+    }
 }
 
 enum class TaskType(name: String) {

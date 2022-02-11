@@ -1,6 +1,6 @@
 package pro.devsvc.unitask.connector.notion
 
-import pro.devsvc.unitask.store.nitrite.NitriteStore
+import pro.devsvc.unitask.core.store.NitriteStore
 import kotlin.test.Test
 
 class TestNotionConnector {
@@ -9,6 +9,6 @@ class TestNotionConnector {
 
     @Test
     fun test() {
-        val connector = NotionConnector(database = "Tasks").start(store)
+        val connector = NotionConnector(database = "Tasks").start()
     }
 }
