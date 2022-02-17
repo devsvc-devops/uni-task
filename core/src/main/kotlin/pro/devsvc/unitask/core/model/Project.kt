@@ -1,10 +1,10 @@
 package pro.devsvc.unitask.core.model
 
-import kotlinx.serialization.Serializable
 
-@Serializable
+import java.time.ZonedDateTime
+
 class Project(
-    /** id from notion is uuid, so have to be string */
-    var id: String,
     var title: String,
-)
+    var estStarted: ZonedDateTime? = null,
+    var deadline: ZonedDateTime? = null
+): Model()

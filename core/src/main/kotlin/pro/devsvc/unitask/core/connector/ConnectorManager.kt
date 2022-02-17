@@ -1,8 +1,10 @@
 package pro.devsvc.unitask.core.connector
 
 import org.slf4j.LoggerFactory
+import pro.devsvc.unitask.core.model.Model
+import pro.devsvc.unitask.core.model.Product
+import pro.devsvc.unitask.core.model.Project
 import pro.devsvc.unitask.core.model.Task
-import pro.devsvc.unitask.core.store.TaskStore
 import pro.devsvc.unitask.core.store.TaskStoreManager
 import java.time.ZonedDateTime
 
@@ -36,6 +38,16 @@ object ConnectorManager {
     }
 
     private fun syncConnector(connector: Connector) {
+        for (t in store.listModels()) {
+            syncToConnector(t, connector)
+        }
+        for (t in connector.listProducts()) {
+            syncToStore(t, connector)
+        }
+        for (t in connector.listProjects()) {
+            syncToStore(t, connector)
+        }
+
         for (t in store.list()) {
             syncToConnector(t, connector)
         }
@@ -46,28 +58,65 @@ object ConnectorManager {
     }
 
     private fun syncToStore(task: Task, connector: Connector) {
-        val existing = store.find(task.title)
-        if (existing != null) {
+        val existing = store.findTask(task.title)
+        if (shouldStore(task, existing, connector)) {
+            task.setLastEditOfConnector(connector.id, task.lastEditTime)
+            store.store(task)
+        }
+    }
+
+    private fun syncToStore(product: Product, connector: Connector) {
+        val existing = store.findProduct(product.name)
+        if (shouldStore(product, existing, connector)) {
+            product.setLastEditOfConnector(connector.id, product.lastEditTime)
+            store.store(product)
+        }
+    }
+
+    private fun syncToStore(project: Project, connector: Connector) {
+        val existing = store.findProduct(project.title)
+        if (shouldStore(project, existing, connector)) {
+            project.setLastEditOfConnector(connector.id, project.lastEditTime)
+            store.store(project)
+        }
+    }
+
+    private fun storeModel(model: Model, existing: Model?, connector: Connector) {
+        if (shouldStore(model, existing, connector)) {
+            model.setLastEditOfConnector(connector.id, model.lastEditTime)
+            store.store(model)
+        }
+    }
+
+    private fun shouldStore(model: Model, existing: Model?, connector: Connector): Boolean {
+        if (existing == null) {
+            return true
+        } else {
             val cid = existing.getIdInConnector(connector.id)
             if (cid != null) {
-                val newCid = task.getIdInConnector(connector.id)
+                val newCid = model.getIdInConnector(connector.id)
                 if (cid != newCid) {
-                    log.error("task title conflict...")
-                    return
+                    log.error("model title/name conflict...")
+                    return false
                 }
             }
             val existingLst = existing.lastEditTime
-            val existingLstFrom = existing.getLastSyncFromConnector(connector.id)
-            // 在上次同步之后，又被修改过，应该是来自其他应用的修改，暂不同步以避免冲突
-            if (existingLst!!.isAfter(existingLstFrom)) {
-                return
+            val cLastEditTime = model.lastEditTime
+            // let > cLet, consider as there is modification from other connectors, don't, store,
+            // wait syncToConnector to execute first
+            if (existingLst!!.isAfter(cLastEditTime)) {
+                return false
             }
+            // check existing connector last edit time, if cLet > existing cLet, do update  else do nothing.
+            val existingCLet = existing.getLastEditOfConnector(connector.id)
+            if (existingCLet != null && existingCLet.isBefore(cLastEditTime)) {
+                return true
+            }
+            return false
         }
-        task.setLastSyncFromConnector(connector.id, ZonedDateTime.now())
-        store.store(task)
     }
 
-    private fun syncToConnector(task: Task, connector: Connector) {
-        connector.update(task)
+    private fun syncToConnector(model: Model, connector: Connector) {
+        connector.update(model)
     }
 }

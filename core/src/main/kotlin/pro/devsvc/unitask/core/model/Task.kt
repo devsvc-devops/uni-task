@@ -1,36 +1,24 @@
 package pro.devsvc.unitask.core.model
 
-import kotlinx.serialization.Serializable
-import pro.devsvc.unitask.core.serial.KZonedDateTimeSerializer
 import java.time.ZonedDateTime
-import kotlinx.datetime.DateTimePeriod
-import kotlinx.datetime.serializers.DateTimePeriodIso8601Serializer
-import pro.devsvc.unitask.core.connector.Connector
-import java.time.format.DateTimeFormatter
 
 // typealias UniTask = Task
 
-@Serializable
 data class Task(
     var title: String,
     var type: TaskType = TaskType.TASK
-) {
+) : Model() {
 
     var desc: String = ""
     var status: TaskStatus = TaskStatus.WAIT
     /** the user id */
     var assignedUserId: String = ""
     var assignedUserName: String? = null
-    @Serializable(with = KZonedDateTimeSerializer::class)
     var estStarted: ZonedDateTime? = null
-    @Serializable(with = KZonedDateTimeSerializer::class)
     var deadline: ZonedDateTime? = null
-    @Serializable(with = DateTimePeriodIso8601Serializer::class)
-    var estimate: DateTimePeriod? = null
-    @Serializable(with = KZonedDateTimeSerializer::class)
+    // var estimate: DateTimePeriod? = null
     var createTime: ZonedDateTime? = null
-    @Serializable(with = KZonedDateTimeSerializer::class)
-    var lastEditTime: ZonedDateTime? = null
+
     var lastEditBy: String = ""
 
     var priority: TaskPriority = TaskPriority.NORMAL
@@ -39,34 +27,12 @@ data class Task(
     var planName: String? = null
     var productName: String? = null
 
-    var customProperties = mutableMapOf<String, String?>()
     var from: String? = null
 
-    fun getIdInConnector(connectorId: String): String? {
-        return customProperties["id-$connectorId"]
-    }
-
-    fun setIdInConnector(connectorId: String, id: String) {
-        customProperties["id-$connectorId"] = id
-    }
-
-    fun setLastSyncToConnector(connectorId: String, time: ZonedDateTime) {
-        customProperties["lst-$connectorId"] = time.format(DateTimeFormatter.ISO_DATE_TIME)
-    }
-
-    fun getLastSyncToConnector(connectorId: String): ZonedDateTime? {
-        val timeStr = customProperties["lst-$connectorId"]
-        return if (timeStr == null) null else ZonedDateTime.parse(timeStr)
-    }
-
-    fun setLastSyncFromConnector(connectorId: String, time: ZonedDateTime) {
-        customProperties["lst-from-$connectorId"] = time.format(DateTimeFormatter.ISO_DATE_TIME)
-    }
-
-    fun getLastSyncFromConnector(connectorId: String): ZonedDateTime? {
-        val timeStr = customProperties["lst-from-$connectorId"]
-        return if (timeStr == null) null else ZonedDateTime.parse(timeStr)
-    }
+    var uProductId: Long? = null
+    var uProjectId: Long? = null
+    var uPlanId: Long? = null
+    var uPersonId: Long? = null
 }
 
 enum class TaskType(name: String) {

@@ -1,10 +1,9 @@
 package pro.devsvc.unitask.core.model
 
+import java.time.ZonedDateTime
+
 data class Plan(
-    var id: Int,
-    var name: String,
-    var createdBy: String,
-    var start: String,
-    val projectIds: List<Int>,
-    val modulesIds: List<Int>
-)
+    var title: String,
+    var estStarted: ZonedDateTime? = null,
+    var deadline: ZonedDateTime? = null
+) : Model()

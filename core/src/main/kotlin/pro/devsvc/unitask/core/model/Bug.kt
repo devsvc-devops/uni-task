@@ -1,3 +1,10 @@
 package pro.devsvc.unitask.core.model
 
-class Bug
+import java.time.ZonedDateTime
+
+data class Bug (
+    var id: Int,
+    var title: String,
+    var assigned: Person,
+    var deadline: ZonedDateTime? = null
+) : Model()

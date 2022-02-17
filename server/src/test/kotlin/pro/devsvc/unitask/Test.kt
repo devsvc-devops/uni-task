@@ -11,6 +11,6 @@ internal class Test {
         ConnectorManager.registerConnector("notion", NotionConnector(database = "Tasks"))
         ConnectorManager.registerConnector("zentao", ZentaoConnector("http://pms.sinandata.com:8088/biz/", System.getProperty("ztUser"), System.getProperty("ztPwd")))
         ConnectorManager.start()
-        //ConnectorManager.sync()
+        ConnectorManager.sync()
     }
 }

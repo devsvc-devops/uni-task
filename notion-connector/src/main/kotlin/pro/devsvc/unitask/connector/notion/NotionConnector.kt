@@ -5,7 +5,7 @@ import notion.api.v1.exception.NotionAPIError
 import notion.api.v1.http.OkHttp4Client
 import notion.api.v1.logging.Slf4jLogger
 import notion.api.v1.model.blocks.BlockType
-import notion.api.v1.model.blocks.ChildDatabaseBlock
+import notion.api.v1.model.common.OptionColor
 import notion.api.v1.model.databases.*
 import notion.api.v1.model.databases.query.filter.condition.SelectFilter
 import notion.api.v1.model.databases.query.filter.condition.TextFilter
@@ -17,11 +17,10 @@ import notion.api.v1.model.pages.PageProperty.RichText.Text
 import notion.api.v1.request.databases.CreateDatabaseRequest
 import notion.api.v1.request.pages.CreatePageRequest
 import org.slf4j.LoggerFactory
-import pro.devsvc.unitask.connector.notion.utils.titlePageProperty
+import pro.devsvc.unitask.connector.notion.ext.RelationPropertySchema
+import pro.devsvc.unitask.connector.notion.ext.SelectPropertySchema
 import pro.devsvc.unitask.core.connector.Connector
-import pro.devsvc.unitask.core.model.Task
-import pro.devsvc.unitask.core.model.TaskStatus
-import pro.devsvc.unitask.core.model.TaskType
+import pro.devsvc.unitask.core.model.*
 import pro.devsvc.unitask.core.store.TaskStoreManager
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -32,8 +31,11 @@ import java.time.temporal.ChronoField
 const val NOTION_CONNECTOR_ID = "notion"
 const val DEFAULT_PAGE_TITLE = "UniTask"
 const val TASK_DATABASE_TITLE = "Tasks"
-const val PROJECT_DATABSE_TITLE = "Projects"
-const val PRODUCT_DATABSE_TITLE = "Products"
+const val PROJECT_DATABASE_TITLE = "Projects"
+const val PRODUCT_DATABASE_TITLE = "Products"
+const val PERSON_DATABASE_TITLE = "Person"
+const val PLAN_DATABASE_TITLE = "Plans"
+
 
 class NotionConnector(
     token: String = System.getProperty("NOTION_TOKEN"),
@@ -69,8 +71,11 @@ class NotionConnector(
     )
 
     lateinit var pageId: String
-    private var databaseId = ""
-    private var taskDatabaseId = ""
+    private var taskDatabaseId: String? = null
+    private var productDatabaseId: String? = null
+    private var projectDabaseId: String? = null
+    private var personDatabaseId: String? = null
+    private var planDatabaseId: String? = null
 
     private val schema = mutableMapOf<String, DatabaseProperty>()
     private val store = TaskStoreManager.store
@@ -85,72 +90,169 @@ class NotionConnector(
         } else return
 
         createDatabase()
+        val database = client.retrieveDatabase(taskDatabaseId!!)
+        schema.putAll(database.properties)
+    }
+
+    override fun listProducts(): List<Product> {
+        return listOf()
+    }
+
+    override fun listPlans(): List<Plan> {
+        return listOf()
+    }
+
+    override fun listProjects(): List<Project> {
+        return listOf()
+    }
+
+    override fun listPersons(): List<Person> {
+        TODO("Not yet implemented")
     }
 
     private fun createDatabase() {
         val children = client.retrieveBlockChildren(pageId)
         for (child in children.results) {
-            if (child.type == BlockType.ChildDatabase && child.asChildDatabase().childDatabase.title == "UniTask") {
-                val databaseBlock = child as ChildDatabaseBlock
-                databaseBlock.childDatabase.title ==
+            if (child.type == BlockType.ChildDatabase && child.asChildDatabase().childDatabase.title == TASK_DATABASE_TITLE) {
+                this.taskDatabaseId = child.asChildDatabase().id
+            }
+            if (child.type == BlockType.ChildDatabase && child.asChildDatabase().childDatabase.title == PROJECT_DATABASE_TITLE) {
+                this.projectDabaseId = child.asChildDatabase().id
+            }
+            if (child.type == BlockType.ChildDatabase && child.asChildDatabase().childDatabase.title == PRODUCT_DATABASE_TITLE) {
+                this.productDatabaseId = child.asChildDatabase().id
+            }
+            if (child.type == BlockType.ChildDatabase && child.asChildDatabase().childDatabase.title == PERSON_DATABASE_TITLE) {
+                this.personDatabaseId = child.asChildDatabase().id
+            }
+            if (child.type == BlockType.ChildDatabase && child.asChildDatabase().childDatabase.title == PLAN_DATABASE_TITLE) {
+                this.planDatabaseId = child.asChildDatabase().id
             }
         }
-
-        client.createDatabase(
-            CreateDatabaseRequest(
-                parent = DatabaseParent.page(pageId),
-                title = listOf(DatabaseProperty.RichText(text = DatabaseProperty.RichText.Text(content = "UniTask"))),
-                properties = mapOf(
-                    "Title" to TitlePropertySchema(),
-                    // "AssignedTo" to SelectPropertySchema(),
-                    "Date" to DatePropertySchema(),
-                    //"Status" to SelectPropertySchema(),
-                    //"Type" to SelectPropertySchema(),
-                )
-            )
-        )
-
-    }
-
-    private fun createTaskDatabase() {
-
-    }
-
-    private fun createProjectDatabase() {
-
+        if (personDatabaseId == null) {
+            createPersonDatabase()
+        }
+        if (productDatabaseId == null) {
+            createProductDatabase()
+        }
+        if (planDatabaseId == null) {
+            createPlanDatabase()
+        }
+        if (projectDabaseId == null) {
+            createProjectDatabase()
+        }
+        if (taskDatabaseId == null) {
+            createTaskDatabase()
+        }
     }
 
     private fun createPersonDatabase() {
+        this.personDatabaseId = client.createDatabase(
+            CreateDatabaseRequest(
+                parent = DatabaseParent.page(pageId),
+                title = listOf(DatabaseProperty.RichText(text = DatabaseProperty.RichText.Text(content = PERSON_DATABASE_TITLE))),
+                properties = mapOf(
+                    "Name" to TitlePropertySchema()
+                )
+            )
+        ).id
+    }
 
+    private fun createPlanDatabase() {
+        this.planDatabaseId = client.createDatabase(
+            CreateDatabaseRequest(
+                parent = DatabaseParent.page(pageId),
+                title = listOf(DatabaseProperty.RichText(text = DatabaseProperty.RichText.Text(content = PLAN_DATABASE_TITLE))),
+                properties = mapOf(
+                    "Name" to TitlePropertySchema()
+                )
+            )
+        ).id
+    }
+
+    private fun createProjectDatabase() {
+        this.projectDabaseId = client.createDatabase(
+            CreateDatabaseRequest(
+                parent = DatabaseParent.page(pageId),
+                title = listOf(DatabaseProperty.RichText(text = DatabaseProperty.RichText.Text(content = PROJECT_DATABASE_TITLE))),
+                properties = mapOf(
+                    "Title" to TitlePropertySchema(),
+                    "Date" to DatePropertySchema()
+                )
+            )
+        ).id
     }
 
     private fun createProductDatabase() {
+        this.productDatabaseId = client.createDatabase(
+            CreateDatabaseRequest(
+                parent = DatabaseParent.page(pageId),
+                title = listOf(DatabaseProperty.RichText(text = DatabaseProperty.RichText.Text(content = PRODUCT_DATABASE_TITLE))),
+                properties = mapOf(
+                    "Name" to TitlePropertySchema()
+                )
+            )
+        ).id
+    }
 
+    private fun createTaskDatabase() {
+        if (personDatabaseId == null) {
+            log.error("no person database...")
+        }
+        if (productDatabaseId == null) {
+            log.error("no product database...")
+        }
+        if (planDatabaseId == null) {
+            log.error("no plan database...")
+        }
+        if (projectDabaseId == null) {
+            log.error("no project database...")
+        }
+
+        this.taskDatabaseId = client.createDatabase(
+            CreateDatabaseRequest(
+                parent = DatabaseParent.page(pageId),
+                title = listOf(DatabaseProperty.RichText(text = DatabaseProperty.RichText.Text(content = TASK_DATABASE_TITLE))),
+                properties = mapOf(
+                    "Title" to TitlePropertySchema(),
+                    "AssignedTo" to RelationPropertySchema(RelationPropertySchema.Relation(personDatabaseId!!)),
+                    "Date" to DatePropertySchema(),
+                    "Module" to RichTextPropertySchema(),
+                    "Product" to RelationPropertySchema(RelationPropertySchema.Relation(productDatabaseId!!)),
+                    "Plan" to RelationPropertySchema(RelationPropertySchema.Relation(planDatabaseId!!)),
+                    "Project" to RelationPropertySchema(RelationPropertySchema.Relation(projectDabaseId!!)),
+                    "Status" to SelectPropertySchema(listOf(
+                        SelectOptionSchema(TaskStatus.WAIT.name, OptionColor.Yellow),
+                        SelectOptionSchema(TaskStatus.DOING.name, OptionColor.Green),
+                        SelectOptionSchema(TaskStatus.DONE.name, OptionColor.Blue),
+                        SelectOptionSchema(TaskStatus.CLOSED.name, OptionColor.Gray)
+                    )),
+                    "Priority" to SelectPropertySchema(listOf(
+                        SelectOptionSchema(TaskPriority.NORMAL.cname, OptionColor.Blue),
+                        SelectOptionSchema(TaskPriority.IMPORTANT.cname, OptionColor.Yellow),
+                        SelectOptionSchema(TaskPriority.UNIMPORTANT.cname, OptionColor.Gray),
+                        SelectOptionSchema(TaskPriority.URGENT.cname, OptionColor.Red)
+                    )),
+                )
+            )
+        ).id
     }
 
     override fun listTasks(): List<Task> {
         val result = mutableListOf<Task>()
-        for (db in listDatabase().results) {
-            if (db.title[0].plainText != database) {
-                continue
-            }
-            databaseId = db.id
-            schema.putAll(db.properties)
-
-            val pages = client.queryDatabase(db.id).results
-            for (page in pages) {
-                val title = page.properties["Name"]?.title?.firstOrNull()?.plainText
-                if (title != null) {
-                    val task = Task(title)
-                    pageToUniTask(page, task)
-                    result.add(task)
-                }
+        val pages = client.queryDatabase(taskDatabaseId!!).results
+        for (page in pages) {
+            val title = page.properties["Name"]?.title?.firstOrNull()?.plainText
+            if (title != null) {
+                val task = Task(title)
+                pageToUniTask(page, task)
+                result.add(task)
             }
         }
         return result
     }
 
-    override fun update(task: Task) {
+    private fun updateTask(task: Task) {
         log.info("sync task $task to notion...")
         val notionId = task.getIdInConnector(NOTION_CONNECTOR_ID)
         val properties = taskToNotionPageProperties(task)
@@ -159,28 +261,20 @@ class NotionConnector(
         }
 
         if (notionId != null) {
+            val existingPage = client.retrievePage(notionId)
+            val existingLastEditTime = parseDateTime(existingPage.lastEditedTime)!!
             if (properties.isNotEmpty()) {
-                // val page = client.retrievePage(notionId)
-                // if (page.archived == true) {
-                //     log.warn("page $page is deleted by user...")
-                // }
-                // val notionLastEditTime = parseDateTime(page.lastEditedTime)
-                val lastEditTime = task.lastEditTime
-                // val lastSyncTime = parseDateTime(task.customProperties["last_sync_to_notion"])
-                // if no edit since last sync, don't sync again
-                // if (lastEditTime?.isBefore(lastSyncTime) == true) {
-                //     continue
-                // }
-                if (true) {
+                val lastEditTime = task.lastEditTime!!
+                if (lastEditTime.isAfter(existingLastEditTime)) {
                     try {
                         val result = client.updatePageProperties(notionId, properties)
                         log.debug("update result $result")
-                        task.customProperties["notion_last_sync_time"] = ZonedDateTime.now().format(formatter)
+                        task.setLastEditOfConnector(NOTION_CONNECTOR_ID, ZonedDateTime.now())
                         store.store(task)
                     } catch (e: NotionAPIError) {
                         if (e.message.startsWith("Could not find page with ID")) {
                             log.warn("deleting task $task")
-                            store.delete(task)
+                            store.deleteTask(task)
                         }
                     } catch (e: Throwable) {
                         log.error("error update task: $task", e)
@@ -191,12 +285,63 @@ class NotionConnector(
             }
         } else {
             val page = client.createPage(CreatePageRequest(
+                PageParent.database(taskDatabaseId!!),
+                properties
+            ))
+            task.setIdInConnector(NOTION_CONNECTOR_ID, page.id)
+            task.setLastEditOfConnector(NOTION_CONNECTOR_ID, parseDateTime(page.lastEditedTime)!!)
+            store.store(task)
+        }
+    }
+
+    override fun update(model: Model) {
+        when (model) {
+            is Task -> {
+                updateTask(model)
+                return
+            }
+        }
+
+        val databaseId = getDatabaseId(model) ?: return
+        log.info("sync model $model to notion...")
+        val notionId = model.getIdInConnector(NOTION_CONNECTOR_ID)
+        val properties = taskToNotionPageProperties(model)
+        if (properties.isEmpty()) {
+            return
+        }
+
+        if (notionId != null) {
+            val existingPage = client.retrievePage(notionId)
+            val existingLastEditTime = parseDateTime(existingPage.lastEditedTime)!!
+            if (properties.isNotEmpty()) {
+                val lastEditTime = model.lastEditTime!!
+                if (lastEditTime.isAfter(existingLastEditTime)) {
+                    try {
+                        val result = client.updatePageProperties(notionId, properties)
+                        log.debug("update result $result")
+
+                        model.setLastEditOfConnector(NOTION_CONNECTOR_ID, parseDateTime(result.lastEditedTime)!!)
+                        store.store(model)
+                    } catch (e: NotionAPIError) {
+                        if (e.message.startsWith("Could not find page with ID")) {
+                            log.warn("deleting model $model")
+                            //store.deleteTask(task)
+                        }
+                    } catch (e: Throwable) {
+                        log.error("error update model: $model", e)
+                    }
+                } else {
+                    log.debug("model $model last edit time is before or equals to notion's last edit time, skip...")
+                }
+            }
+        } else {
+            val page = client.createPage(CreatePageRequest(
                 PageParent.database(databaseId),
                 properties
             ))
-            task.customProperties["notion_last_sync_time"] = ZonedDateTime.now().format(formatter)
-            task.customProperties["notion_id"] = page.id
-            store.store(task)
+            model.setIdInConnector(NOTION_CONNECTOR_ID, page.id)
+            model.setLastEditOfConnector(NOTION_CONNECTOR_ID, parseDateTime(page.lastEditedTime)!!)
+            store.store(model)
         }
     }
 
@@ -206,7 +351,7 @@ class NotionConnector(
             task.type = TaskType.valueOf(typeName.toUpperCase())
         }
 
-        task.customProperties["notion_id"] = page.id
+        task.setIdInConnector(NOTION_CONNECTOR_ID, page.id)
         val pageStatus = page.properties["Status"]?.select?.name
         if (pageStatus != null) {
             task.status = TaskStatus.getByName(pageStatus)
@@ -215,17 +360,73 @@ class NotionConnector(
         task.estStarted = parseDateTime(page.properties["Due Date"]?.date?.start)
         task.deadline = parseDateTime(page.properties["Due Date"]?.date?.end)
         task.assignedUserName = page.properties["AssignedTo"]?.select?.name
-        task.lastEditTime = parseDateTime(page.lastEditedTime)
-        // task.customProperties["last_sync_to_notion"] = ZonedDateTime.now().format(formatter)
-        task.projectName = page.properties["ProjectName"]?.select?.name
-        task.productName = page.properties["ProductName"]?.select?.name
-        task.from = "Notion"
+        task.lastEditTime = parseDateTime(page.lastEditedTime)!!
+    }
+
+    private fun pageToUniProject(page: Page, project: Project) {
+        project.estStarted = parseDateTime(page.properties["Due Date"]?.date?.start)
+        project.deadline = parseDateTime(page.properties["Due Date"]?.date?.end)
+    }
+
+    private fun getDatabaseId(model: Model): String? {
+        return when (model) {
+            is Product -> productDatabaseId
+            is Project -> projectDabaseId
+            is Plan -> planDatabaseId
+            is Person -> personDatabaseId
+            else -> null
+        }
+    }
+
+    private fun taskToNotionPageProperties(model: Model): MutableMap<String, PageProperty> {
+        val properties = mutableMapOf<String, PageProperty>()
+        // val databaseId = when (model) {
+        //     is Project -> productDatabaseId
+        //     is Project -> projectDabaseId
+        //     is Plan -> planDatabaseId
+        //     else -> null
+        // }
+        // if (databaseId == null) {
+        //     log.error("no database for model: $model")
+        //     return properties
+        // }
+        // val database = client.retrieveDatabase(databaseId)
+        when (model) {
+            is Product -> {
+                properties["Name"] = PageProperty(title = listOf(
+                    RichText(text = Text(model.name))
+                ))
+            }
+            is Person -> {
+                properties["Name"] = PageProperty(title = listOf(
+                    RichText(text = Text(model.name))
+                ))
+            }
+            is Plan -> {
+                properties["Title"] = PageProperty(title = listOf(
+                    RichText(text = Text(model.title))
+                ))
+            }
+            is Project -> {
+                properties["Title"] = PageProperty(title = listOf(
+                    RichText(text = Text(model.title))
+                ))
+                if (model.estStarted == null) {
+                    model.estStarted = model.deadline
+                }
+                properties["Date"] = PageProperty(date = PageProperty.Date(
+                    start = model.estStarted?.format(NOTION_FMT),
+                    end = model.deadline?.format(NOTION_FMT),
+                ))
+            }
+        }
+        return properties
     }
 
     private fun taskToNotionPageProperties(task: Task): MutableMap<String, PageProperty> {
         val properties = mutableMapOf<String, PageProperty>()
         if (task.title.isNotBlank()) {
-            properties["Name"] = PageProperty(title = listOf(
+            properties["Title"] = PageProperty(title = listOf(
                 RichText(text = Text(task.title))
             ))
         }
@@ -244,20 +445,34 @@ class NotionConnector(
         safeCreatePageProperty(properties,"ProjectName", task.projectName)
         safeCreatePageProperty(properties,"ProductName", task.productName)
         safeCreatePageProperty(properties,"Type", task.type.name)
-        safeCreatePageProperty(properties, "Priority", task.priority.cname)
+        safeCreatePageProperty(properties,"Priority", task.priority.cname)
 
         if (task.type == TaskType.TASK && task.projectName != null) {
             // if project is already in notion, construct the relation
             // if not, have to do this in next sync. TODO: better solution?
-            val projectInNotion = client.queryDatabase(databaseId, NCompoundFilter(
+            val projectInNotion = client.queryDatabase(projectDabaseId!!, NCompoundFilter(
                 and = listOf(
-                    NPropertyFilter("Name", title = TextFilter(task.projectName)),
-                    NPropertyFilter("Type", select = SelectFilter("Project"))
+                    NPropertyFilter("Title", title = TextFilter(task.projectName)),
                 )
             ))
             if (projectInNotion.results.isNotEmpty()) {
                 val projectInNotionPage = projectInNotion.results[0]
                 properties["Project"] = PageProperty(relation = listOf(
+                    PageProperty.PageReference(projectInNotionPage.id)
+                ))
+            }
+        }
+        if (task.type == TaskType.TASK && task.productName != null) {
+            // if project is already in notion, construct the relation
+            // if not, have to do this in next sync. TODO: better solution?
+            val projectInNotion = client.queryDatabase(productDatabaseId!!, NCompoundFilter(
+                and = listOf(
+                    NPropertyFilter("Name", title = TextFilter(task.productName)),
+                )
+            ))
+            if (projectInNotion.results.isNotEmpty()) {
+                val projectInNotionPage = projectInNotion.results[0]
+                properties["Product"] = PageProperty(relation = listOf(
                     PageProperty.PageReference(projectInNotionPage.id)
                 ))
             }
