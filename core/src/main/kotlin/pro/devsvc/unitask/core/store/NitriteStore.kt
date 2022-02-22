@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory
 import pro.devsvc.unitask.core.model.*
 import java.text.DateFormat
 import java.text.SimpleDateFormat
+import java.util.*
 
 const val UNI_TASK = "unitask"
 
@@ -22,6 +23,7 @@ class NitriteStore : TaskStore {
     val mapper = jacksonObjectMapper()
     init {
         mapper.registerModule(JavaTimeModule())
+        mapper.setTimeZone(TimeZone.getDefault())
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         // mapper.dateFormat = SimpleDateFormat.
         mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
