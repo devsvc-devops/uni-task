@@ -129,7 +129,7 @@ class ZentaoConnector(
     }
 
     private fun updateTask(task: UniTask) {
-        if (task.projectName.isNullOrBlank() || task.projectName == "任务池" || task.projectName == "智能报告长期任务集") {
+        if (task.projectName.isNullOrBlank() || task.projectName == "任务池") {
             return
         }
         if (task.type != TaskType.TASK) {
@@ -143,7 +143,8 @@ class ZentaoConnector(
             if (storeLastEditTime != null && storeLastEditTime.isAfter(lastSyncTime)) {
                 uniTaskToZTask(task, zTask)
                 sdk.saveTask(zTask)
-                task.setLastEditOfConnector(ZENTAO_CONNECTOR_ID, ZonedDateTime.now())
+                val newTask = sdk.getTask(zTask.id)
+                task.setLastEditOfConnector(ZENTAO_CONNECTOR_ID, newTask!!.lastEditedDate!!.atZone(ZoneId.systemDefault()))
                 store.store(task)
             }
         } else {
@@ -154,9 +155,8 @@ class ZentaoConnector(
             if (result.taskId > 0) {
                 val newTask = sdk.getTask(result.taskId)!!
                 val newUTask = zTaskToUniTask(newTask)
-                newUTask.setIdInConnector(ZENTAO_CONNECTOR_ID, "zTask-${result.taskId}")
-                newUTask.setLastEditOfConnector(ZENTAO_CONNECTOR_ID, ZonedDateTime.now())
-                newUTask.lastEditTime
+                newUTask.setIdInConnector(ZENTAO_CONNECTOR_ID, newTask.id.toString())
+                newUTask.setLastEditOfConnector(ZENTAO_CONNECTOR_ID, newUTask.lastEditTime)
                 store.store(newUTask)
             }
         }

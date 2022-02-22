@@ -100,17 +100,19 @@ class NitriteStore : TaskStore {
 
     private fun model2Document(model: Model, document: Document) {
         val map = mapper.convertValue(model, mapType)
-        document.putAll(map)
+        val existingCustomDoc = document["customProperties"] as Document
 
-        val customProperties = map["customProperties"] as Map<String, Any>
-        var customDoc = document["customProperties"] as MutableMap<String, Any>
+        var customDoc = existingCustomDoc
         if (customDoc == null) {
             customDoc = Document()
             document["customProperties"] = customDoc
         }
-        if (customProperties != null) {
-            customDoc.putAll(customProperties)
-        }
+
+        val newCustomProperties = model.customProperties
+        customDoc.putAll(newCustomProperties)
+
+        document.putAll(map)
+        document["customProperties"] = customDoc
     }
 
 

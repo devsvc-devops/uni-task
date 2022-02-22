@@ -254,44 +254,12 @@ class NotionConnector(
 
     private fun updateTask(task: Task) {
         log.info("sync task $task to notion...")
-        val notionId = task.getIdInConnector(NOTION_CONNECTOR_ID)
         val properties = taskToNotionPageProperties(task)
         if (properties.isEmpty()) {
             return
         }
 
-        if (notionId != null) {
-            val existingPage = client.retrievePage(notionId)
-            val existingLastEditTime = parseDateTime(existingPage.lastEditedTime)!!
-            if (properties.isNotEmpty()) {
-                val lastEditTime = task.lastEditTime!!
-                if (lastEditTime.isAfter(existingLastEditTime)) {
-                    try {
-                        val result = client.updatePageProperties(notionId, properties)
-                        log.debug("update result $result")
-                        task.setLastEditOfConnector(NOTION_CONNECTOR_ID, ZonedDateTime.now())
-                        store.store(task)
-                    } catch (e: NotionAPIError) {
-                        if (e.message.startsWith("Could not find page with ID")) {
-                            log.warn("deleting task $task")
-                            store.deleteTask(task)
-                        }
-                    } catch (e: Throwable) {
-                        log.error("error update task: $task", e)
-                    }
-                } else {
-                    log.debug("task ${task.title} last edit time is before or equals to notion's last edit time, skip...")
-                }
-            }
-        } else {
-            val page = client.createPage(CreatePageRequest(
-                PageParent.database(taskDatabaseId!!),
-                properties
-            ))
-            task.setIdInConnector(NOTION_CONNECTOR_ID, page.id)
-            task.setLastEditOfConnector(NOTION_CONNECTOR_ID, parseDateTime(page.lastEditedTime)!!)
-            store.store(task)
-        }
+        doUpdateModel(task, properties, taskDatabaseId!!)
     }
 
     override fun update(model: Model) {
@@ -304,12 +272,20 @@ class NotionConnector(
 
         val databaseId = getDatabaseId(model) ?: return
         log.info("sync model $model to notion...")
-        val notionId = model.getIdInConnector(NOTION_CONNECTOR_ID)
         val properties = taskToNotionPageProperties(model)
         if (properties.isEmpty()) {
             return
         }
 
+        doUpdateModel(model, properties, databaseId)
+    }
+
+    private fun doUpdateModel(
+        model: Model,
+        properties: MutableMap<String, PageProperty>,
+        databaseId: String
+    ) {
+        val notionId = model.getIdInConnector(NOTION_CONNECTOR_ID)
         if (notionId != null) {
             val existingPage = client.retrievePage(notionId)
             val existingLastEditTime = parseDateTime(existingPage.lastEditedTime)!!
@@ -335,10 +311,12 @@ class NotionConnector(
                 }
             }
         } else {
-            val page = client.createPage(CreatePageRequest(
-                PageParent.database(databaseId),
-                properties
-            ))
+            val page = client.createPage(
+                CreatePageRequest(
+                    PageParent.database(databaseId),
+                    properties
+                )
+            )
             model.setIdInConnector(NOTION_CONNECTOR_ID, page.id)
             model.setLastEditOfConnector(NOTION_CONNECTOR_ID, parseDateTime(page.lastEditedTime)!!)
             store.store(model)
